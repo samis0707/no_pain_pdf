@@ -1,14 +1,16 @@
 import Handlebars from 'handlebars'
 import '@/lib/handlebars-helpers'
+import { loadHelpers } from '@/lib/helper-loader'
 
 export async function POST(request: Request) {
   try {
-    const { html, css, data } = await request.json() as { html: string; css: string; data: Record<string, string> }
+    const { html, css, data, miscText } = await request.json() as { html: string; css: string; data: Record<string, string>; miscText?: string }
 
     if (!html) {
       return Response.json({ error: 'html is required' }, { status: 400 })
     }
 
+    loadHelpers(miscText)
     const template = Handlebars.compile(html)
     const compiled = template(data)
 

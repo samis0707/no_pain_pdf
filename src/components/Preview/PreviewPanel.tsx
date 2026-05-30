@@ -6,14 +6,14 @@ import { useTemplateStore } from '@/stores/templateStore'
 import { useDataStore } from '@/stores/dataStore'
 
 export default function PreviewPanel() {
-  const { html, css } = useTemplateStore()
+  const { html, css, miscText } = useTemplateStore()
   const { rows } = useDataStore()
   const { compiledHtml, isCompiling, compileError, compile } = usePreviewStore()
 
   useEffect(() => {
     const sampleData = rows.length > 0 ? rows[0] : {} as Record<string, string>
-    compile(html, css, sampleData)
-  }, [html, css, rows, compile])
+    compile(html, css, sampleData, miscText)
+  }, [html, css, rows, miscText, compile])
 
   if (!html) {
     return (

@@ -5,6 +5,7 @@ interface TemplateState {
   html: string
   css: string
   name: string
+  miscText: string
   isSaving: boolean
   lastSaved: Date | null
   error: string | null
@@ -21,6 +22,7 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
   html: '',
   css: '',
   name: '',
+  miscText: '',
   isSaving: false,
   lastSaved: null,
   error: null,
@@ -47,7 +49,7 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
       const res = await fetch(`/api/items/${itemId}`)
       if (!res.ok) throw new Error('Failed to fetch template')
       const data = await res.json()
-      set({ html: data.html ?? '', css: data.css ?? '', name: data.name ?? '' })
+      set({ html: data.html ?? '', css: data.css ?? '', name: data.name ?? '', miscText: data.miscText ?? '' })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to fetch template' })
     }

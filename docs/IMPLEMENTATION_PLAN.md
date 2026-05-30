@@ -87,12 +87,28 @@ Build the core editor loop without AI or auth. This is the foundation everything
 - **Epic 1 renders a basic PDF** (Puppeteer — full WeasyPrint pipeline deferred to Epic 3)
 - **Commits**: exportStore → ExportPanel → PDF generate route
 
+**Step 8: Handlebars helper system — subexpressions + data transforms + per-item custom helpers** (~3h)
+- `src/lib/handlebars-helpers.data.ts` — 20 subexpression helpers across 3 categories:
+  - **Data-transform** (return arrays for `#each`): `sortBy`, `sortByDesc`, `filterBy`, `filterNot`, `groupBy`, `first`, `last`, `slice`, `pluck`
+  - **String**: `concat`, `lower`, `upper`, `defaultStr`
+  - **Logic** (return booleans for `#if`): `eq`, `gt`, `gte`, `lt`, `lte`, `and`, `or`, `not`
+- `src/lib/helper-loader.ts` — loads per-PrintItem custom helpers from `PrintItem.miscText.customHelpers[]`
+  - Uses `new Function(...params, body)` to create helpers at render time
+  - Unregisters previous item's helpers to prevent cross-contamination
+  - Registered automatically in `handlebarsRenderer.ts` (client preview), `compile/route.ts` (server API), and `helpers/route.ts` (discovery)
+- Wired through `templateStore.miscText` → `previewStore` → `PreviewPanel` for live preview
+- `helpers/route.ts` returns dynamic list of all 23 helpers (3 original + 20 new)
+- **Prepares for Epic 2**: `PrintItem.miscText.customHelpers` schema ready for AI agent to create custom helpers via `register_helper` tool
+- **Commits**: data helpers → helper-loader → wire into pipeline
+
 ### Test coverage per step
 - REST API: create project → create item → upload dataset → update template → retrieve (end-to-end via `curl`)
 - API input validation (missing fields, invalid IDs return 400/404)
 - CSV parsing edge cases (empty file, malformed rows, encoding)
 - Handlebars compile errors
 - DataSet creation and retrieval
+- **New** — Subexpression helper unit tests (34 tests): sortBy, filterBy, groupBy, logic helpers, chained subexpressions
+- **New** — Custom helper loader tests (11 tests): `new Function` registration, subexpression in `#if`/`#each`, this-context, unregister, error handling
 
 ### Acceptance criteria
 - [ ] `curl -X POST /api/projects` → returns project JSON with id
@@ -103,6 +119,9 @@ Build the core editor loop without AI or auth. This is the foundation everything
 - [ ] Map a CSV column to `{{title}}` in the template
 - [ ] Edit HTML in Monaco → preview updates live
 - [ ] Click Export → download a PDF with data rendered
+- [ ] `{{#each (sortBy items "name")}}...{{/each}}` sorts data in preview
+- [ ] `{{#if (gt count 5)}}big{{else}}small{{/if}}` evaluates logic in templates
+- [ ] Custom helper registered via `PrintItem.miscText` is usable in template and preview
 
 ---
 

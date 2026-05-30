@@ -1,4 +1,5 @@
 import Handlebars from 'handlebars'
+import { registerDataHelpers } from './handlebars-helpers.data'
 
 export function registerHelpers(): void {
   Handlebars.registerHelper('formatDate', (dateStr: string, format: string) => {
@@ -32,6 +33,8 @@ export function registerHelpers(): void {
     if (a === b) return options.fn(this)
     return options.inverse(this)
   })
+
+  registerDataHelpers()
 }
 
 registerHelpers()
