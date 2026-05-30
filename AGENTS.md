@@ -1,5 +1,12 @@
 # No Pain PDF — Agent Instructions
 
+## Git Philosophy
+
+- **Small, clear commits**: Each commit is a single logical change with a descriptive message. No mixed concerns, no "and also" commits.
+- **Commit early, commit often**: Prefer many small commits over one large one. Makes review, bisect, and rollback easier.
+- **Linear history**: Rebase onto main before merging. No merge bubbles.
+- **Messages**: Use conventional commits — `type: short description` (e.g., `feat:`, `fix:`, `docs:`, `chore:`, `ci:`, `refactor:`). Description explains *what* and *why*, not *how*.
+
 ## Development Practices
 
 - **TDD**: Use red/green testing for every implementation. Write the test first (red), implement until it passes (green), then refactor.
