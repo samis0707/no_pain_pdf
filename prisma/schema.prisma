@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           Int             @id @default(autoincrement())
+  name         String?
+  email        String          @unique
+  passwordHash String?
+  image        String?
+  preferences  String          @default("{}")
+  projects     PrintProject[]
+  assets       Asset[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model PrintProject {
+  id        Int          @id @default(autoincrement())
+  userId    Int
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  status    String       @default("draft")
+  items     PrintItem[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model PrintTemplate {
+  id        Int          @id @default(autoincrement())
+  name      String
+  category  String?
+  html      String
+  css       String
+  metadata  String       @default("{}")
+  items     PrintItem[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model PrintItem {
+  id             Int            @id @default(autoincrement())
+  projectId      Int
+  project        PrintProject   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  templateId     Int?
+  template       PrintTemplate? @relation(fields: [templateId], references: [id])
+  name           String
+  html           String
+  css            String
+  assetLinks     String         @default("[]")
+  exportSettings String         @default("{}")
+  miscText       String         @default("{}")
+  thumbnailUrl   String?
+  version        Int            @default(1)
+  datasets       DataSet[]
+  chatMessages   ChatMessage[]
+  assets         Asset[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model DataSet {
+  id          Int        @id @default(autoincrement())
+  printItemId Int
+  printItem   PrintItem  @relation(fields: [printItemId], references: [id], onDelete: Cascade)
+  name        String     @default("default")
+  rows        String     @default("[]")
+  columns     String     @default("[]")
+  mapping     String     @default("[]")
+  rowCount    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([printItemId, name])
+}
+
+model ChatMessage {
+  id          Int        @id @default(autoincrement())
+  printItemId Int
+  printItem   PrintItem  @relation(fields: [printItemId], references: [id], onDelete: Cascade)
+  role        String
+  content     String
+  attachments String     @default("[]")
+  toolCalls   String     @default("[]")
+  createdAt   DateTime   @default(now())
+}
+
+model Asset {
+  id           Int          @id @default(autoincrement())
+  printItemId  Int?
+  printItem    PrintItem?   @relation(fields: [printItemId], references: [id], onDelete: SetNull)
+  userId       Int?
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  filename     String
+  originalName String
+  mimeType     String
+  fileSize     Int
+  createdAt    DateTime     @default(now())
+}
