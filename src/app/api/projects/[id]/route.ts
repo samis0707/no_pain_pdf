@@ -27,6 +27,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+
   let body: Record<string, unknown>
   try {
     body = await request.json()

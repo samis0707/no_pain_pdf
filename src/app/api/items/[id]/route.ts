@@ -55,9 +55,9 @@ export async function PUT(
   const item = await prisma.printItem.update({
     where: { id: parseInt(id) },
     data: {
-      ...(body.html !== undefined && { html: body.html }),
-      ...(body.css !== undefined && { css: body.css }),
-      ...(body.name !== undefined && { name: body.name }),
+      ...(body.html !== undefined && { html: body.html as string }),
+      ...(body.css !== undefined && { css: body.css as string }),
+      ...(body.name !== undefined && { name: body.name as string }),
     },
   })
 
