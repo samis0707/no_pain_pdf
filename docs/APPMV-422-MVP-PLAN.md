@@ -12,10 +12,10 @@
 2. [Architecture Overview](#2-architecture-overview)
 3. [Database Schema (Prisma)](#3-database-schema-prisma)
 4. [Route Mapping: Express → Next.js API](#4-route-mapping-express--nextjs-api)
-5. [Phase 0: Scaffold Next.js & Migrate Frontend](#5-phase-0-scaffold-nextjs--migrate-frontend)
+5. [Phase 0: Scaffold Next.js & Build Frontend](#5-phase-0-scaffold-nextjs--build-frontend)
 6. [Phase 1: Database Foundation (Prisma)](#6-phase-1-database-foundation-prisma)
-7. [Phase 2: Extract pdf-service (Puppeteer Microservice)](#7-phase-2-extract-pdf-service-puppeteer-microservice)
-8. [Phase 3: Rewrite Backend Routes → Next.js API](#8-phase-3-rewrite-backend-routes--nextjs-api)
+7. [Phase 2: Create pdf-service (WeasyPrint Microservice)](#7-phase-2-create-pdf-service-weasyprint-microservice)
+8. [Phase 3: Build Backend API Routes → Next.js](#8-phase-3-build-backend-api-routes--nextjs)
 9. [Phase 4: Auth & Project Management](#9-phase-4-auth--project-management)
 10. [Phase 5: Chat Interface + AI Backend](#10-phase-5-chat-interface--ai-backend)
 11. [Phase 6: GrapeJS WYSIWYG Editor](#11-phase-6-grapejs-wysiwyg-editor)
@@ -86,11 +86,11 @@ Build an **agentic workflow** where the user:
                            │
               ┌────────────┴────────────┐
               │                         │
-     ┌────────┴────────┐     ┌──────────┴──────────┐
-     │ pdf-service     │     │ Ghostscript (Docker) │
-     │ (Puppeteer)     │     │ CMYK Conversion      │
-     │ Port 3001       │     │ Port 3002            │
-     └─────────────────┘     └─────────────────────┘
+      ┌────────┴────────┐     ┌──────────┴──────────┐
+      │ pdf-service     │     │ Ghostscript (Docker) │
+      │ (WeasyPrint)    │     │ CMYK Conversion      │
+      │ Port 3001       │     │ Port 3002            │
+      └─────────────────┘     └─────────────────────┘
 ```
 
 ### Service Breakdown
@@ -98,7 +98,7 @@ Build an **agentic workflow** where the user:
 | Service | Role | Notes |
 |---------|------|-------|
 | **Next.js app** | UI + API routes | Replaces Vite frontend + Express backend |
-| **pdf-service** | Puppeteer HTML→PDF | Standalone microservice. Kept separate because Chromium is heavy and PDF gen can take 30s+ |
+| **pdf-service** | WeasyPrint HTML→PDF | Standalone Python microservice. CSS Paged Media renderer, native PDF/UA accessibility, CMYK support. Separated because WeasyPrint is single-threaded and CPU-intensive. |
 | **Ghostscript** | CMYK conversion | Existing Docker container, unchanged |
 
 ---
@@ -151,17 +151,31 @@ model PrintItem {
   name           String
   html           String         // Handlebars template HTML
   css            String         // Template CSS
-  assetLinks     Json?          @default("[]") // ["/api/assets/file/uuid.jpg", ...]
-  dataMapping    Json?          @default("[]") // [{ csvColumn, templateVariable, transform }]
-  dataSet        Json?          @default("[]") // cached CSV data (headers + sample)
+  assetLinks     Json?          @default("[]") // S3 URLs: ["https://s3...", ...]
   exportSettings Json?          @default("{}") // { format, bleed, colorMode, iccProfile, ... }
   miscText       Json?          @default("{}") // flexible metadata
   thumbnailUrl   String?
   version        Int            @default(1)
+  datasets       DataSet[]
   chatMessages   ChatMessage[]
   assets         Asset[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+}
+
+model DataSet {
+  id          Int        @id @default(autoincrement())
+  printItemId Int
+  printItem   PrintItem  @relation(fields: [printItemId], references: [id], onDelete: Cascade)
+  name        String     @default("default")
+  rows        Json       @default("[]")  // parsed CSV data — array of records
+  columns     Json       @default("[]")  // [{ name: string, type: string, detected: string }]
+  mapping     Json       @default("[]")  // [{ csvColumn, templateVariable, transform }]
+  rowCount    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([printItemId, name])
 }
 
 model ChatMessage {
@@ -181,7 +195,7 @@ model Asset {
   printItem    PrintItem?  @relation(fields: [printItemId], references: [id], onDelete: SetNull)
   userId       Int?
   user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  filename     String      // UUID-based filename on disk
+  filename     String      // S3 object key (UUID-based)
   originalName String      // Original upload filename
   mimeType     String      // "image/png", "image/jpeg", etc.
   fileSize     Int         // bytes
@@ -234,36 +248,39 @@ Migrate existing preset templates into `PrintTemplate`:
 | DELETE | `/api/items/[id]` | Delete item |
 | GET | `/api/items/[id]/chat` | Get chat history |
 | POST | `/api/items/[id]/chat` | Send message |
+| GET | `/api/items/[id]/datasets` | List datasets for item |
+| POST | `/api/items/[id]/datasets` | Create/upload dataset (CSV) |
+| GET | `/api/items/[id]/datasets/[dsId]` | Get dataset (rows, columns, mapping) |
+| PUT | `/api/items/[id]/datasets/[dsId]` | Update dataset (mapping, metadata) |
+| DELETE | `/api/items/[id]/datasets/[dsId]` | Delete dataset |
 | POST | `/api/auth/[...nextauth]` | Auth (NextAuth.js) |
 
 ---
 
-## 5. Phase 0: Scaffold Next.js & Migrate Frontend
+## 5. Phase 0: Scaffold Next.js & Build Frontend
 
 **Est. time:** 6h
 
 ### Steps
 
-1. **Create Next.js app** in the monorepo root
+1. **Create Next.js app** in the workspace root
    ```bash
    npx create-next-app@latest app --typescript --tailwind --app --src-dir
    ```
-   Move into `service-opo/app/`
 
 2. **Install dependencies**
    - Zustand, @monaco-editor/react (temporary, until GrapeJS replaces it)
    - handlebars, papaparse
    - @prisma/client, next-auth, bcryptjs
-   - @anthropic-ai/sdk (or openai)
+   - @mistralai/mistralai
 
-3. **Migrate existing frontend components** from `print-generator/frontend/src/`:
-   - `stores/` → Zustand stores (mostly unchanged)
+3. **Build frontend components**:
+   - `stores/` → Zustand stores (template, data, preview, export)
    - `components/DataImport/` → CSV upload, DataPreview, FieldMapper
    - `components/Preview/` → PreviewPanel, ErrorBoundary
    - `components/ExportPanel/` → Export settings form
    - `components/Editor/` → **(will be replaced by GrapeJS in Phase 6, but keep temporarily)**
    - `utils/` → handlebarsRenderer, csvParser
-   - `index.css` → migrate to Tailwind or keep as CSS modules
 
 4. **Configure App Router layout** — tabs (Upload / Design / Download) become client components
 
@@ -344,83 +361,112 @@ app/
 
 ---
 
-## 7. Phase 2: Extract pdf-service (Puppeteer Microservice)
+## 7. Phase 2: Create pdf-service (WeasyPrint Microservice)
 
-**Est. time:** 2h
+**Est. time:** 3h
 
 ### Why Separate?
 
-- Puppeteer runs a full Chromium browser — heavy process that shouldn't live inside Next.js
-- PDF generation can exceed Next.js serverless function timeouts (60s on Vercel)
-- Clean separation: scale PDF workers independently if needed
+- WeasyPrint is a single-threaded Python process — CPU-intensive PDF generation shouldn't block Next.js
+- PDF generation can exceed serverless function timeouts (60s+)
+- Clean separation: scale PDF workers independently
+- Python + system libs (Pango, Cairo) add deployment complexity to a Node.js app
 
 ### Steps
 
-1. **Create `pdf-service/` directory** (standalone Node.js app)
+1. **Create `pdf-service/` directory** (standalone Python/FastAPI app)
 
-2. **Copy relevant files** from `print-generator/backend/src/services/`:
-   - `pdf.service.ts` — PDF generation with Puppeteer (almost unchanged)
-   - `template.service.ts` — Handlebars compilation
-   - `pdfbox.service.ts` — PDF box metadata
-   - `asset.service.ts` — Asset path resolution (simplified)
-
-3. **Create simple Express server** with one endpoint:
+2. **Set up Python project**
    ```
-   POST /generate
-   Body: { html, css, data: Record<string, unknown>[], options: PDFOptions }
-   Response: application/pdf binary
-   ```
-
-4. **Add health endpoint**
-   ```
-   GET /health → { status: "ok" }
+   pdf-service/
+   ├── pyproject.toml          ← weasyprint>=67.0, fastapi, uvicorn, pydantic
+   ├── Dockerfile
+   └── app/
+       ├── __init__.py
+       ├── main.py             ← FastAPI app, port 3001
+       ├── pdf.py              ← WeasyPrint PDF generation with FontConfiguration
+       ├── fetcher.py          ← Custom URLFetcher for S3 assets
+       └── models.py           ← Pydantic request/response models
    ```
 
-5. **Dockerize** (optional — can run as a simple Node process too)
+3. **Create `POST /generate` endpoint** accepting:
+   ```json
+   {
+     "html": "<!DOCTYPE html>...",
+     "css": "@page { size: A4; margin: 20mm; }",
+     "options": {
+       "pdf_variant": "pdf/ua-1",
+       "pdf_tags": true,
+       "full_fonts": false
+     },
+     "assets": {
+       "logo.png": "base64..."
+     },
+     "metadata": {
+       "title": "Flyer",
+       "author": "User"
+     }
+   }
+   ```
+   Response: `application/pdf` binary
+
+4. **Implement WeasyPrint rendering** with:
+   - `FontConfiguration` for `@font-face` support
+   - Custom `URLFetcher` resolving S3/local asset URLs
+   - Process-level isolation (subprocess with timeout + memory limits)
+   - `device-cmyk()` color support for CMYK output
+   - Bleed and crop marks via CSS (`@page { bleed: 3mm; marks: crop cross; }`)
+
+5. **Add endpoints**
+   ```
+   GET  /health        → { status: "ok", version: "68.1" }
+   POST /generate      → PDF binary
+   ```
+
+6. **Dockerize** — `debian:trixie-slim` base with Pango, Cairo, fontconfig
 
 ### Key Files Created
 
 ```
 pdf-service/
-├── package.json
-├── tsconfig.json
+├── pyproject.toml
 ├── Dockerfile
-└── src/
-    ├── index.ts              ← Express server, port 3001
-    ├── pdf.service.ts
-    ├── template.service.ts
-    ├── pdfbox.service.ts
-    └── asset.service.ts
+├── entrypoint.sh
+└── app/
+    ├── __init__.py
+    ├── main.py              ← FastAPI, port 3001
+    ├── pdf.py               ← WeasyPrint render with FontConfiguration
+    ├── fetcher.py            ← Custom URLFetcher for S3 assets
+    └── models.py             ← Pydantic models
 ```
 
 ---
 
-## 8. Phase 3: Rewrite Backend Routes → Next.js API
+## 8. Phase 3: Build Backend API Routes → Next.js
 
 **Est. time:** 4h
 
 ### Steps
 
-Create API route handlers for each existing Express endpoint:
+Create Next.js API route handlers:
 
 | Route Handler | What It Does |
 |--------------|-------------|
 | `api/templates/compile/route.ts` | Compiles Handlebars with data (uses client-side equivalent or calls a lightweight Node.js compile) |
 | `api/templates/validate/route.ts` | Validates Handlebars syntax |
 | `api/templates/helpers/route.ts` | Returns available Handlebars helpers with descriptions |
-| `api/pdf/generate/route.ts` | Proxies to `pdf-service:3001/generate`, returns PDF |
-| `api/pdf/batch/route.ts` | Proxies to `pdf-service:3001/batch`, returns PDF |
+| `api/pdf/generate/route.ts` | Proxies to `pdf-service:3001/generate`, forwards HTML+CSS+options, returns PDF |
 | `api/cmyk/health/route.ts` | Proxies to Ghostscript health check |
 | `api/cmyk/profiles/route.ts` | Returns available ICC profiles |
 | `api/cmyk/convert/route.ts` | Proxies CMYK conversion to Ghostscript |
-| `api/assets/file/[filename]/route.ts` | Serves uploaded files |
-| `api/assets/upload/route.ts` | Handles file upload via `formidable` or native `Request.formData()` |
+| `api/assets/file/[filename]/route.ts` | Serves uploaded files via S3 signed URL or proxy |
+| `api/assets/upload/route.ts` | Handles file upload, stores to S3, creates Asset record |
 
 ### Key Design Decisions
 
-- **Handlebars compile on client**: The frontend already does Handlebars compilation via `handlebarsRenderer.ts`. Keep it client-side for instant preview. The API route is only needed if the backend needs to compile (e.g., for PDF generation — but that's handled by pdf-service now).
-- **File uploads**: Use Next.js Route Handlers with `formidable` or the native `Request.formData()` API. Store files in `public/assets/` or a configurable upload directory.
-- **PDF proxy**: Simple passthrough — no heavy processing in Next.js.
+- **Handlebars compile on client**: `handlebarsRenderer.ts` runs client-side for instant preview. The API route is only needed if the backend needs to compile (e.g., for PDF generation — handled by pdf-service via WeasyPrint).
+- **File uploads**: Use Next.js Route Handlers with `Request.formData()`. Files streamed directly to S3.
+- **PDF proxy**: Next.js forwards the request to WeasyPrint service, streams the PDF response back. No heavy processing in Next.js.
 
 ---
 
@@ -525,6 +571,14 @@ event: done
 data: {"id": "msg_123"}
 ```
 
+**Data flow:**
+
+1. User uploads CSV → parsed client-side with PapaParse
+2. Client POSTs to `/api/items/[id]/datasets` → creates `DataSet` row with parsed rows, columns, rowCount
+3. Raw CSV file backed up to S3 as an `Asset`
+4. On chat, the system prompt pulls data context from the `DataSet` (columns, sample rows, row count)
+5. AI tools (`get_data_info`, `analyze_data`) query the `DataSet` table directly
+
 **System prompt construction:**
 
 The backend builds a system prompt with full context:
@@ -607,29 +661,31 @@ const tools = [
 
 ```typescript
 // src/lib/ai-service.ts
-import Anthropic from '@anthropic-ai/sdk'
+import MistralClient from '@mistralai/mistralai'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
+const mistral = new MistralClient({
+  apiKey: process.env.MISTRAL_API_KEY
 })
 
 export async function streamChat(messages, tools, context, onChunk) {
-  const response = await anthropic.messages.stream({
-    model: 'claude-sonnet-4-20250514',
+  const response = await mistral.chat.stream({
+    model: 'mistral-large-2501',
     system: buildSystemPrompt(context),
     messages: messages.map(formatMessage),
     tools: tools,
     max_tokens: 8192,
   })
 
-  // Handle streaming + tool calls
-  for await (const event of response) {
-    if (event.type === 'content_block_delta') {
-      onChunk({ type: 'text', content: event.delta.text })
+  // Handle streaming + tool calls (Mistral SSE format)
+  for await (const chunk of response) {
+    if (chunk.choices?.[0]?.delta?.content) {
+      onChunk({ type: 'text', content: chunk.choices[0].delta.content })
     }
-    if (event.type === 'tool_use') {
-      const result = await executeTool(event.name, event.input)
-      onChunk({ type: 'tool_result', tool: event.name, result })
+    if (chunk.choices?.[0]?.delta?.tool_calls) {
+      for (const tc of chunk.choices[0].delta.tool_calls) {
+        const result = await executeTool(tc.function.name, JSON.parse(tc.function.arguments))
+        onChunk({ type: 'tool_result', tool: tc.function.name, result })
+      }
     }
   }
 }
@@ -880,7 +936,7 @@ Components
 User uploads a screenshot/mockup/PDF:
 
 1. Image is attached to chat message as base64
-2. AI backend sends image to vision-capable model (Claude Sonnet 4 / GPT-4o)
+2. AI backend sends image to vision-capable model (Mistral)
 3. System prompt includes vision instructions:
    ```
    Analyze this design screenshot and create a matching HTML/CSS template.
@@ -902,24 +958,26 @@ On CSV upload + after chat analysis requests:
 
 ```typescript
 // Tool: analyze_data
-async function analyzeData(printItemId: number) {
-  const item = await prisma.printItem.findUnique({ where: { id: printItemId } })
-  const data = item?.dataSet as Record<string, string>[] | null
-  if (!data) return { error: 'No data found' }
+async function analyzeData(printItemId: number, datasetName?: string) {
+  const dataset = await prisma.dataSet.findFirst({
+    where: { printItemId, name: datasetName ?? "default" },
+  })
+  if (!dataset) return { error: 'No dataset found' }
 
+  const rows = dataset.rows as Record<string, string>[]
   const analysis = {
-    rowCount: data.length,
-    columns: Object.keys(data[0] || {}),
-    duplicates: findDuplicates(data),
-    nullCounts: countNulls(data),
-    dateColumns: detectDateColumns(data),
-    suggestions: generateSuggestions(data),
+    rowCount: dataset.rowCount,
+    columns: dataset.columns,
+    duplicates: findDuplicates(rows),
+    nullCounts: countNulls(rows),
+    dateColumns: detectDateColumns(rows),
+    suggestions: generateSuggestions(rows),
   }
 
   return analysis
 }
 
-// Auto-run on CSV upload → show results in chat
+// Auto-run on CSV upload → creates DataSet → shows results in chat
 ```
 
 **Chat integration:**
@@ -961,8 +1019,8 @@ AI configures export settings and triggers the pipeline:
 2. AI responds: "Setting CMYK export with 3mm bleed. Ready to generate PDF."
 3. "Generate PDF" button appears in chat
 4. Click → frontend calls `POST /api/pdf/generate` with current template + data + settings
-5. Backend proxies to pdf-service → Puppeteer generates PDF
-6. If CMYK: backend proxies to Ghostscript → converts to CMYK
+5. Backend proxies to pdf-service → WeasyPrint generates PDF with CMYK directly (or RGB fallback)
+6. If PDF/X CMYK variant needed: Ghostscript post-processes for additional CMYK conversion
 7. Sets PDF/X metadata (TrimBox, BleedBox, ArtBox)
 8. Returns PDF → download prompt appears
 
@@ -1020,7 +1078,10 @@ service-opo/
 │   │   │   │   │   ├── route.ts
 │   │   │   │   │   └── [id]/
 │   │   │   │   │       ├── route.ts
-│   │   │   │   │       └── chat/route.ts
+│   │   │   │   │       ├── chat/route.ts
+│   │   │   │   │       └── datasets/
+│   │   │   │   │           ├── route.ts
+│   │   │   │   │           └── [dsId]/route.ts
 │   │   │   │   ├── templates/
 │   │   │   │   │   ├── compile/route.ts
 │   │   │   │   │   ├── validate/route.ts
@@ -1059,7 +1120,7 @@ service-opo/
 │   │   │   └── ui/                        ← Shared UI (buttons, inputs, etc.)
 │   │   ├── stores/
 │   │   │   ├── templateStore.ts
-│   │   │   ├── dataStore.ts
+│   │   │   ├── dataStore.ts                ← interacts with DataSet API
 │   │   │   ├── previewStore.ts
 │   │   │   ├── exportStore.ts
 │   │   │   ├── chatStore.ts               ← NEW
@@ -1069,27 +1130,30 @@ service-opo/
 │   │   │   └── index.ts
 │   │   ├── lib/
 │   │   │   ├── prisma.ts                  ← NEW
+│   │   │   ├── s3.ts                      ← NEW: S3 client
 │   │   │   ├── ai-service.ts             ← NEW
 │   │   │   ├── ai-tools/                 ← NEW
 │   │   │   │   ├── template.tool.ts
-│   │   │   │   ├── data.tool.ts
+│   │   │   │   ├── data.tool.ts               ← queries DataSet table
 │   │   │   │   └── preview.tool.ts
 │   │   │   └── handlebars-helpers.ts      (shared)
 │   │   └── utils/
 │   │       ├── handlebarsRenderer.ts
 │   │       └── csvParser.ts
 │   ├── public/
-│   │   └── assets/                        ← Uploaded files
+│   │   └── (empty — uploaded files stored in S3)
 │   └── package.json
 │
-├── pdf-service/                            ← NEW: Standalone Puppeteer
-│   ├── src/
-│   │   ├── index.ts
-│   │   ├── pdf.service.ts
-│   │   ├── template.service.ts
-│   │   └── pdfbox.service.ts
-│   ├── package.json
-│   └── Dockerfile
+├── pdf-service/                            ← NEW: Standalone WeasyPrint (Python)
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   ├── entrypoint.sh
+│   └── app/
+│       ├── __init__.py
+│       ├── main.py                         ← FastAPI, port 3001
+│       ├── pdf.py                          ← WeasyPrint render logic
+│       ├── fetcher.py                      ← Custom URLFetcher for S3 assets
+│       └── models.py                       ← Pydantic models
 │
 ├── ghostscript-service/                    ← Existing (unchanged)
 │
@@ -1105,16 +1169,16 @@ service-opo/
 
 | Phase | What | Est. Time | Delivers |
 |-------|------|-----------|----------|
-| **0** | Scaffold Next.js, migrate frontend | 6h | Working Next.js app with existing UI |
+| **0** | Scaffold Next.js, build frontend | 6h | Working Next.js app with UI components |
 | **1** | Prisma schema + seed data | 2h | Database foundation |
-| **2** | Extract pdf-service (Puppeteer) | 2h | PDF generation as microservice |
-| **3** | Rewrite Express routes → API routes | 4h | All existing API endpoints in Next.js |
+| **2** | Create pdf-service (WeasyPrint) | 3h | PDF generation as Python microservice |
+| **3** | Build backend API routes | 4h | All API endpoints |
 | **4** | Auth + project management | 4h | User login, project CRUD, navigation |
 | **5** | Chat UI + AI backend | 8h | Agentic chat with tool-calling |
 | **6** | GrapeJS WYSIWYG editor | 8h | Visual template editor with Handlebars |
 | **7** | Vision + CSV intelligence | 5h | Screenshot → template, duplicate detection |
 | **8** | Export pipeline + polish | 3h | End-to-end flow, undo/redo, onboarding |
-| **Total** | | **42h** | |
+| **Total** | | **43h** | |
 
 ### Parallelization Opportunities
 
@@ -1146,16 +1210,15 @@ Phase 0 ──→ Phase 1 ──→ Phase 4 (auth)
 | Framework | Next.js 14+ App Router | Consolidates frontend + API, good DX |
 | Database | PostgreSQL + Prisma | Type-safe ORM, migrations, good DX |
 | Visual Editor | GrapeJS | Mature, extensible, Handlebars plugin possible |
-| AI Provider | Anthropic Claude Sonnet 4 | Best at vision + code generation + tool use |
+| AI Provider | **Mistral** (best model) | Central API key, best-in-class for code generation, vision, and tool use |
 | Auth | NextAuth.js (Credentials + OAuth) | Prisma adapter built-in, easy setup |
-| PDF Engine | Puppeteer (standalone) | Already works, separate for performance |
+| Deployment | **Docker Compose** (single-node MVP) | Next.js + pdf-service + Ghostscript + PostgreSQL + MinIO in one compose file |
+| PDF Engine | **WeasyPrint** (standalone Python/FastAPI microservice) | CSS Paged Media renderer, native PDF/UA accessibility, CMYK with ICC profiles, lighter than Chromium |
+| File Storage | **S3-compatible** (MinIO dev, Supabase Storage prod) | Scalable, no local disk dependency |
 | CMYK | Ghostscript (Docker) | Already works, unchanged |
 | State | Zustand | Already used, works well with Next.js client components |
 | Streaming | Server-Sent Events | Simple, one-way, perfect for AI chat |
 
 ## Appendix B: Open Questions
 
-1. **File storage**: Local filesystem for MVP? Or S3-compatible (Supabase Storage, MinIO)?
-2. **AI model access**: Self-hosted or API-key based? User provides key or app has a central key?
-3. **Deployment**: Docker Compose for MVP? Or Vercel + Railway/Render?
-4. **Multi-tenancy**: Single-user MVP or multi-user from the start?
+1. **Deployment scaling**: Docker Compose single-node for MVP? Or Kubernetes later?
