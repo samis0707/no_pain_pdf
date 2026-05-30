@@ -65,12 +65,14 @@ export async function POST(
     })
   }
 
+  const name = `${(file.name || 'dataset').replace(/\.[^.]+$/, '')}-${Date.now()}`
+
   let dataset
   try {
     dataset = await prisma.dataSet.create({
       data: {
         printItemId,
-        name: file.name || 'default',
+        name,
         columns: JSON.stringify(parsed.columns),
         rows: JSON.stringify(parsed.rows),
         rowCount: parsed.rowCount,
