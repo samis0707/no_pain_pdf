@@ -1,12 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DataImportPanel from '@/components/DataImport/DataImportPanel'
+import MonacoEditor from '@/components/Editor/MonacoEditor'
+import PreviewPanel from '@/components/Preview/PreviewPanel'
+import ErrorBoundary from '@/components/Preview/ErrorBoundary'
+import { useTemplateStore } from '@/stores/templateStore'
 
 type Tab = 'upload' | 'design' | 'export'
 
 export default function EditorPage() {
   const [activeTab, setActiveTab] = useState<Tab>('upload')
+  const { setItemId } = useTemplateStore()
+
+  useEffect(() => {
+    if (activeTab === 'design') {
+      setItemId(1)
+    }
+  }, [activeTab, setItemId])
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'upload', label: 'Upload' },
@@ -43,15 +54,17 @@ export default function EditorPage() {
           <div className="flex h-full">
             <div className="flex-1 border-r p-4">
               <h2 className="text-lg font-semibold mb-2">Template Editor</h2>
-              <div className="border rounded-lg h-[calc(100%-2.5rem)] bg-zinc-50 flex items-center justify-center text-zinc-400">
-                Editor coming soon
+              <div className="h-[calc(100%-2.5rem)]">
+                <MonacoEditor />
               </div>
             </div>
             <div className="flex-1 p-4">
               <h2 className="text-lg font-semibold mb-2">Preview</h2>
-              <div className="border rounded-lg h-[calc(100%-2.5rem)] bg-zinc-50 flex items-center justify-center text-zinc-400">
-                Preview coming soon
-              </div>
+              <ErrorBoundary>
+                <div className="h-[calc(100%-2.5rem)]">
+                  <PreviewPanel />
+                </div>
+              </ErrorBoundary>
             </div>
           </div>
         )}
