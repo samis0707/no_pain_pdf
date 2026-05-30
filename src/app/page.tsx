@@ -5,6 +5,7 @@ import DataImportPanel from '@/components/DataImport/DataImportPanel'
 import MonacoEditor from '@/components/Editor/MonacoEditor'
 import PreviewPanel from '@/components/Preview/PreviewPanel'
 import ErrorBoundary from '@/components/Preview/ErrorBoundary'
+import ExportPanel from '@/components/ExportPanel/ExportPanel'
 import { useTemplateStore } from '@/stores/templateStore'
 
 type Tab = 'upload' | 'design' | 'export'
@@ -75,35 +76,8 @@ export default function EditorPage() {
             <p className="text-zinc-500 text-sm">
               Configure export settings and download your PDF.
             </p>
-            <div className="border rounded-lg p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Page Size</label>
-                <select className="w-full border rounded-md px-3 py-2 text-sm">
-                  <option>A4</option>
-                  <option>Letter</option>
-                  <option>Custom</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Orientation</label>
-                  <select className="w-full border rounded-md px-3 py-2 text-sm">
-                    <option>Portrait</option>
-                    <option>Landscape</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Margins</label>
-                  <select className="w-full border rounded-md px-3 py-2 text-sm">
-                    <option>Normal (2cm)</option>
-                    <option>Narrow (1cm)</option>
-                    <option>Wide (3cm)</option>
-                  </select>
-                </div>
-              </div>
-              <button className="w-full bg-zinc-900 text-white py-2 rounded-md text-sm font-medium hover:bg-zinc-800 transition-colors">
-                Download PDF
-              </button>
+            <div className="border rounded-lg p-6">
+              <ExportPanel />
             </div>
           </div>
         )}
