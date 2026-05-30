@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import DataImportPanel from '@/components/DataImport/DataImportPanel'
 
 type Tab = 'upload' | 'design' | 'export'
 
@@ -36,17 +37,7 @@ export default function EditorPage() {
       </header>
 
       <main className="flex-1 overflow-auto">
-        {activeTab === 'upload' && (
-          <div className="p-6 max-w-2xl mx-auto space-y-6">
-            <h2 className="text-xl font-semibold">Import Data</h2>
-            <p className="text-zinc-500 text-sm">
-              Upload a CSV file to populate your template with data.
-            </p>
-            <div className="border-2 border-dashed border-zinc-300 rounded-lg p-12 text-center text-zinc-400">
-              Drag & drop a CSV file here, or click to browse
-            </div>
-          </div>
-        )}
+        {activeTab === 'upload' && <DataImportPanel itemId={1} />}
 
         {activeTab === 'design' && (
           <div className="flex h-full">
