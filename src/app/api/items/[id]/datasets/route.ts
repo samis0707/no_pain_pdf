@@ -45,18 +45,44 @@ export async function POST(
     })
   }
 
-  const raw = await file.text()
-  const parsed = parseCsvMetadata(raw)
+  let raw: string
+  try {
+    raw = await file.text()
+  } catch {
+    return new Response(JSON.stringify({ error: 'Failed to read file' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 
-  const dataset = await prisma.dataSet.create({
-    data: {
-      printItemId,
-      name: file.name || 'default',
-      columns: JSON.stringify(parsed.columns),
-      rows: JSON.stringify(parsed.rows),
-      rowCount: parsed.rowCount,
-    },
-  })
+  let parsed: ReturnType<typeof parseCsvMetadata>
+  try {
+    parsed = parseCsvMetadata(raw)
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : 'CSV parse failed' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  let dataset
+  try {
+    dataset = await prisma.dataSet.create({
+      data: {
+        printItemId,
+        name: file.name || 'default',
+        columns: JSON.stringify(parsed.columns),
+        rows: JSON.stringify(parsed.rows),
+        rowCount: parsed.rowCount,
+      },
+    })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Failed to create dataset'
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 
   return new Response(
     JSON.stringify({

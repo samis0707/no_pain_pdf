@@ -13,9 +13,9 @@ export function parseCsvMetadata(raw: string): CsvMeta {
     dynamicTyping: false,
   })
 
-  const parseErrors = result.errors.filter((e) => e.type === 'error')
-  if (parseErrors.length > 0) {
-    throw new Error(`CSV parse error: ${parseErrors[0].message}`)
+  const criticalErrors = result.errors.filter((e) => e.type !== 'Delimiter')
+  if (criticalErrors.length > 0) {
+    throw new Error(`CSV parse error: ${criticalErrors[0].message}`)
   }
 
   return {
