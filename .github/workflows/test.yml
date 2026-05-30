@@ -10,10 +10,6 @@ jobs:
   nextjs:
     name: Next.js (Vitest)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./app
-
     services:
       postgres:
         image: postgres:16-alpine

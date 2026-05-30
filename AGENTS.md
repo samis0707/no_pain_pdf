@@ -1,5 +1,9 @@
 # No Pain PDF — Agent Instructions
 
+<!-- BEGIN:nextjs-agent-rules -->
+> **This is NOT the Next.js you know** — v16 has breaking changes. APIs, conventions, and file structure may all differ from your training data. `params`, `searchParams`, `cookies()`, `headers()` are all Promises (must `await`). Route handlers export named `GET`/`POST` functions. Read `node_modules/next/dist/docs/` before writing any code.
+<!-- END:nextjs-agent-rules -->
+
 ## Git Philosophy
 
 - **Small, clear commits**: Each commit is a single logical change with a descriptive message. No mixed concerns, no "and also" commits.
@@ -12,17 +16,17 @@
 - **TDD**: Use red/green testing for every implementation. Write the test first (red), implement until it passes (green), then refactor.
 - **Test first**: Before writing any implementation code, write the test that defines the expected behavior.
 - **Commit strategy**: RED commit (test written, fails) → GREEN commit (implementation passes test) → REFACTOR commit (clean up).
-- **Run tests locally**: `cd app && npm run test` (Next.js) or `cd pdf-service && pytest -v` (Python).
+- **Run tests locally**: `npm run test` (Next.js) or `cd pdf-service && pytest -v` (Python).
 - **CI**: Tests run automatically on every push/PR via `.github/workflows/test.yml`.
 
 ## Testing Stack
 
 | Layer | Tool | Command |
 |-------|------|---------|
-| **Next.js API routes + utils** | Vitest | `cd app && npm run test` |
-| **React components** | Vitest + React Testing Library | `cd app && npm run test` |
+| **Next.js API routes + utils** | Vitest | `npm run test` |
+| **React components** | Vitest + React Testing Library | `npm run test` |
 | **Python WeasyPrint service** | pytest + httpx | `cd pdf-service && pytest -v` |
-| **E2E (future)** | Playwright | `cd app && npx playwright test` |
+| **E2E (future)** | Playwright | `npx playwright test` |
 
 ## The TDD Cycle
 

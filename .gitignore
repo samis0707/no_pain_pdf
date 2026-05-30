@@ -1,12 +1,12 @@
-# --- Next.js app ---
-app/.next/
-app/out/
-app/node_modules/
-app/.env
-app/.env.local
-app/.env.production
-app/.env.*.local
-app/next-env.d.ts
+# --- Next.js ---
+.next/
+out/
+.next
+node_modules/
+next-env.d.ts
+
+# --- Environment ---
+.env*
 
 # --- Python pdf-service ---
 pdf-service/__pycache__/
@@ -17,13 +17,31 @@ pdf-service/.python-version
 pdf-service/.env
 
 # --- Prisma ---
-app/prisma/migrations/
-app/prisma/*.db
-app/node_modules/.prisma/
+prisma/migrations/
+prisma/*.db
+prisma/.env
+node_modules/.prisma/
+
+# --- Testing ---
+/coverage
+
+# --- Build ---
+/build
 
 # --- Docker ---
 docker-data/
 .docker/
+
+# --- Debug logs ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- Misc ---
+*.pem
+.vercel
+*.tsbuildinfo
 
 # --- IDE ---
 .vscode/
@@ -36,4 +54,4 @@ docker-data/
 # --- OS ---
 .DS_Store
 Thumbs.db
-*.un~  # vim backup files
+*.un~
