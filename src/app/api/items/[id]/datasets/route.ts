@@ -62,6 +62,7 @@ export async function POST(
     JSON.stringify({
       id: dataset.id,
       columns: parsed.columns,
+      rows: parsed.rows,
       rowCount: dataset.rowCount,
       name: dataset.name,
     }),

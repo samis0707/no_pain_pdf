@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { parseCsvMetadata } from '@/utils/csvParser'
 
 interface DataState {
   itemId: number | null
@@ -88,9 +87,6 @@ export const useDataStore = create<DataState>()((set, get) => ({
     set({ isUploading: true, error: null })
 
     try {
-      const raw = await file.text()
-      const parsed = parseCsvMetadata(raw)
-
       const formData = new FormData()
       formData.append('file', file)
 
@@ -104,10 +100,13 @@ export const useDataStore = create<DataState>()((set, get) => ({
         throw new Error(err.error || 'Upload failed')
       }
 
+      const dataset = await res.json()
+
       set({
-        columns: parsed.columns,
-        rows: parsed.rows,
-        rowCount: parsed.rowCount,
+        selectedDatasetId: dataset.id,
+        columns: dataset.columns,
+        rows: dataset.rows,
+        rowCount: dataset.rowCount,
       })
 
       await get().fetchDatasets()
