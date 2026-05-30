@@ -11,50 +11,83 @@
 
 Build the core editor loop without AI or auth. This is the foundation everything else rests on.
 
-### Tasks
+### Execution Steps
 
-1. **Scaffold Next.js app** (1h)
-   - `create-next-app` with TypeScript, Tailwind, App Router
-   - Install deps: Zustand, handlebars, papaparse, Prisma, S3 client
-   - Basic page layout with tabs (Upload / Design / Export)
+**Step 1: Scaffold Next.js + TDD setup** (~1h)
+- Delete existing `app/`, run `create-next-app` with TypeScript, Tailwind, App Router, src-dir
+- Restore TDD infrastructure: `vitest.config.ts`, RED tests (projects, items, datasets), GREEN test (csvParser)
+- Install deps: zustand, handlebars, papaparse, @monaco-editor/react, prisma, @prisma/client, puppeteer, vitest
+- Flatten project structure (move Next.js to root, merge `.gitignore` and `AGENTS.md`, update CI)
+- Seed `page.tsx` with 3-tab layout: Upload / Design / Export
+- **Commits**: scaffold → test suite → flatten → 3-tab layout
 
-2. **Database + schema** (1h)
-   - Prisma schema: User, PrintProject, PrintItem, PrintTemplate, DataSet, ChatMessage, Asset
-   - Seed 3 preset templates (event flyer, cooperation, general)
-   - Run migration, create `lib/prisma.ts` singleton
+**Step 2: Database + Prisma** (~1h)
+- `npx prisma init` → PostgreSQL provider
+- Prisma schema: `User`, `PrintProject`, `PrintItem`, `PrintTemplate`, `DataSet`, `ChatMessage`, `Asset`
+  - All models with full field definitions per `docs/APPMV-422-MVP-PLAN.md`
+  - `PrintTemplate` includes `category` field for preset seeding
+  - `DataSet` has unique constraint `@@unique([printItemId, name])`
+- `src/lib/prisma.ts` singleton (global cached client)
+- `prisma/seed.ts` — 3 preset templates with HTML+CSS:
+  - Event flyer (`quartierszentrum-boeckingen`)
+  - Cooperation flyer (`sportpark-kooperation`)
+  - General flyer (`linqr-allgemein`)
+- `npx prisma migrate dev --name init` + seed
+- Run tests (all RED API tests still fail — no routes yet, csvParser GREEN still passes)
+- **Commits**: schema → seed → migration
 
-3. **REST API — Core CRUD** (2h)
-   - `api/projects` — `GET` (list), `POST` (create)
-   - `api/projects/[id]` — `GET`, `PUT`, `DELETE`
-   - `api/items` — `POST` (create with projectId)
-   - `api/items/[id]` — `GET`, `PUT` (save html, css), `DELETE`
-   - `api/items/[id]/datasets` — `POST` (upload CSV, parse with PapaParse server-side, store rows + columns in DataSet), `GET` (list)
-   - `api/items/[id]/datasets/[dsId]` — `GET`, `PUT` (update mapping), `DELETE`
-   - All routes return JSON, validate input, return proper status codes
-   - Testable via `curl` without a browser
+**Step 3: REST API — Core CRUD** (~2h) → **turns RED tests GREEN**
+- `src/app/api/projects/route.ts` — `GET` (list), `POST` (create, returns 201)
+- `src/app/api/projects/[id]/route.ts` — `GET`, `PUT`, `DELETE` (404 for missing)
+- `src/app/api/items/route.ts` — `POST` (create with projectId, returns 201)
+- `src/app/api/items/[id]/route.ts` — `GET`, `PUT` (save html+css), `DELETE`
+- `src/app/api/items/[id]/datasets/route.ts` — `POST` (CSV via FormData, parse with PapaParse server-side, store in DataSet), `GET` (list)
+- `src/app/api/items/[id]/datasets/[dsId]/route.ts` — `GET`, `PUT` (update mapping), `DELETE`
+- All routes: validate input, return proper status codes (201/200/400/404)
+- All routes: export named async functions (`GET`, `POST`, `PUT`, `DELETE`)
+- All routes: `await params` (Next.js v16 Promise-based params)
+- **RED tests go GREEN** — `npm run test` shows 11 passed, 0 failed
+- **Commits**: projects routes → items routes → datasets routes
 
-4. **CSV import frontend** (1.5h)
-   - CSVUploader — drag-and-drop file upload
-   - DataPreview — table showing first 20 rows
-   - FieldMapper — bind CSV columns to template variables
-   - Calls `POST /api/items/[id]/datasets` on upload
+**Step 4: CSV import frontend** (~1.5h)
+- `src/stores/dataStore.ts` — Zustand store for dataset state
+- `src/utils/csvParser.ts` — PapaParse-based CSV parser (already GREEN)
+- `src/components/DataImport/CSVUploader.tsx` — drag-and-drop file upload
+- `src/components/DataImport/DataPreview.tsx` — table showing first 20 rows
+- `src/components/DataImport/FieldMapper.tsx` — bind CSV columns to `{{variables}}`
+- `src/components/DataImport/DataImportPanel.tsx` — composite component
+- **Commits**: dataStore → CSVUploader → DataPreview → FieldMapper
 
-5. **Template editor** (2.5h)
-   - Monaco Editor for HTML + CSS
-   - Client-side Handlebars compile with `handlebarsRenderer.ts`
-   - Live iframe preview with sample data from DataSet
-   - Saves via `PUT /api/items/[id]`
+**Step 5: Template editor + live preview** (~2.5h)
+- `src/stores/templateStore.ts` — Zustand store for template HTML/CSS
+- `src/stores/previewStore.ts` — Zustand store for preview state
+- `src/lib/handlebars-helpers.ts` — shared Handlebars helpers (formatDate, truncate, ifEquals)
+- `src/utils/handlebarsRenderer.ts` — client-side Handlebars compile with sample data
+- `src/components/Editor/MonacoEditor.tsx` — Monaco Editor for HTML + CSS
+- `src/components/Preview/PreviewPanel.tsx` — live iframe preview with sample data
+- `src/components/Preview/ErrorBoundary.tsx` — error boundary for preview
+- Debounced auto-save via `PUT /api/items/[id]` (300ms debounce)
+- **Commits**: stores + helpers → MonacoEditor → PreviewPanel → auto-save
 
-6. **Other backend routes** (1h)
-   - `api/templates/compile`, `api/templates/validate`, `api/templates/helpers`
-   - `api/assets/upload`, `api/assets/file/[filename]`
+**Step 6: Other backend routes** (~1h)
+- `src/app/api/templates/compile/route.ts` — Handlebars compile with data
+- `src/app/api/templates/validate/route.ts` — Handlebars syntax validation
+- `src/app/api/templates/helpers/route.ts` — list available helpers with descriptions
+- `src/app/api/assets/upload/route.ts` — file upload, store, create Asset record
+- `src/app/api/assets/file/[filename]/route.ts` — serve uploaded files
+- **Commits**: template routes → asset routes
 
-7. **Export panel + PDF** (2h)
-   - Export settings form (page size, orientation, margins)
-   - `POST /api/pdf/generate` → download PDF
-   - **Epic 1 renders a basic PDF** (browser print-to-PDF or placeholder PDF service)
+**Step 7: Export panel + PDF download** (~2h)
+- `src/stores/exportStore.ts` — Zustand store for export settings
+- `src/components/ExportPanel/ExportPanel.tsx` — export settings form (page size, orientation, margins)
+- `src/app/api/pdf/generate/route.ts` — Puppeteer-based HTML→PDF generation
+  - Accepts HTML+CSS, launches headless Chromium, generates PDF via `page.pdf()`
+  - Returns PDF binary with correct Content-Type
+- Wire download flow in ExportPanel
+- **Epic 1 renders a basic PDF** (Puppeteer — full WeasyPrint pipeline deferred to Epic 3)
+- **Commits**: exportStore → ExportPanel → PDF generate route
 
-### Test coverage
+### Test coverage per step
 - REST API: create project → create item → upload dataset → update template → retrieve (end-to-end via `curl`)
 - API input validation (missing fields, invalid IDs return 400/404)
 - CSV parsing edge cases (empty file, malformed rows, encoding)
