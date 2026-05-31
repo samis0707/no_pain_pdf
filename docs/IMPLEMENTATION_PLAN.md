@@ -189,6 +189,7 @@ The differentiator. The user talks to an AI that edits the template, analyzes da
 - Provider error tolerance — returns error message on API failure instead of throwing
 - Tool handler unit tests — all 10 tools return correct JSON, including `get_data`, `update_data`, `get_helpers`
 - Tool-calling orchestration loop — tool dispatch → execution → result → final response
+  - ⚠️ **UAT blocker (must fix before Epic 3):** `runToolLoop` tests are false positives — they pass on the error path (no credentials) without ever entering the tool-calling loop. Replace with a mock/fake provider that returns synthetic `toolCalls` and assert that `executeToolCall` is dispatched and results are fed back into the loop.
 - SSE stream formatting + client-side SSE reader
 - System prompt construction (includes all 23 helpers + custom helpers + dataset schema)
 - "Apply" flow — store updates correctly, version increments
