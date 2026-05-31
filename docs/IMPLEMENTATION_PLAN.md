@@ -160,7 +160,7 @@ The differentiator. The user talks to an AI that edits the template, analyzes da
    - `get_helpers()` — returns list of all available Handlebars helpers with signatures, params, and descriptions
 
 3. **Chat UI** (2.5h)
-   - MessageList — markdown rendering, code blocks with "Apply" button
+   - MessageList — markdown rendering, version badges per change, inline "[↩ Rollback]" link
    - MessageInput — textarea, send, image upload button
    - ChatSidebar — resizable panel, scroll persistence
    - SSE stream reader — streams text and tool events in real-time
@@ -173,11 +173,12 @@ The differentiator. The user talks to an AI that edits the template, analyzes da
    - Injects available assets
    - Instructions for creating custom helpers via `register_helper` tool
 
-5. **"Apply" button flow** (1h)
-   - Tool call display → diff summary → "Apply Changes" button
-   - On click: updates Zustand templateStore → triggers preview → PUT to DB
-   - Version increment on each change
-   - For `register_helper` calls: reload helper registry and re-render preview
+5. **Auto-apply flow** (1h)
+   - Tool calls execute immediately on arrival — no manual "Apply" step
+   - Each `update_template` call: snapshot current state → apply new HTML/CSS → increment version → persist to DB
+   - Preview re-renders live as changes stream in
+   - Tool call display in chat shows diff summary with "(v3)" version badge and "[↩ Rollback]" link
+   - For `register_helper` calls: reload helper registry and re-render preview immediately
 
 6. **Helper management UI** (0.5h)
    - Show registered custom helpers and their source code in chat sidebar
@@ -192,7 +193,7 @@ The differentiator. The user talks to an AI that edits the template, analyzes da
   - ⚠️ **UAT blocker (must fix before Epic 3):** `runToolLoop` tests are false positives — they pass on the error path (no credentials) without ever entering the tool-calling loop. Replace with a mock/fake provider that returns synthetic `toolCalls` and assert that `executeToolCall` is dispatched and results are fed back into the loop.
 - SSE stream formatting + client-side SSE reader
 - System prompt construction (includes all 23 helpers + custom helpers + dataset schema)
-- "Apply" flow — store updates correctly, version increments
+- Auto-apply flow — snapshot created before each change, store updates correctly, version increments
 - Conversation persistence — save/load/clear messages per itemId
 - Helper registration round-trip: tool call → persist → re-render
 - Chat API route — streaming SSE endpoint with text + tool call events
@@ -202,7 +203,7 @@ The differentiator. The user talks to an AI that edits the template, analyzes da
 - [ ] `LLM_PROVIDER=anthropic LLM_API_KEY=...` → agent uses Claude
 - [ ] Send "Make the title bigger and blue" → AI calls `update_template` → change appears in preview
 - [ ] Send "What data do I have?" → AI calls `get_data_info` → shows column summary
-- [ ] AI code suggestion shows "Apply" button → click it → template updates
+- [ ] AI changes apply instantly — preview updates live, "[↩ Rollback]" shown per change, version increments
 - [ ] Send "Create a helper that formats phone numbers" → AI calls `register_helper` → helper available in template
 - [ ] Conversation persists on page refresh
 - [ ] Send "What helpers can I use?" → AI calls `get_helpers` → lists helpers with signatures
@@ -394,6 +395,65 @@ Speed boost for common workflows.
 
 ---
 
+## Epic 7: Auto-Apply + Versioned Rollback (~4h)
+
+**User value:** "Changes apply instantly when the AI acts. Every change is a recoverable snapshot — roll back any AI edit with one click."
+
+Enables safe live editing. The user never needs to manually approve changes; instead every mutation creates a snapshot that can be reverted at any time.
+
+### Tasks
+
+1. **`PrintItemVersion` model** (0.5h)
+   - New Prisma model: `PrintItemVersion { id, printItemId, version, html, css, miscText, createdAt }`
+   - Unique constraint on `[printItemId, version]`
+   - Migration to create the table
+   - `PrintItem.html` / `PrintItem.css` / `PrintItem.miscText` remain the *current* live state
+
+2. **Snapshot-on-write in `applyTemplateChanges()`** (1h)
+   - Before applying any change, read current `PrintItem` state and persist a snapshot at `version + 1`
+   - Snapshot captures: `html`, `css`, `miscText` (includes `customHelpers[]`)
+   - Then apply the new change and increment `PrintItem.version`
+   - Works for both `update_template` and `register_helper` calls (via miscText)
+   - Future: extend to `DataSet` snapshots for `update_data` rollback
+
+3. **Rollback API** (1h)
+   - `POST /api/items/[id]/rollback` — body: `{ version: number }`
+   - Fetches the `PrintItemVersion` snapshot for that version
+   - Restores `PrintItem.html`, `PrintItem.css`, `PrintItem.miscText` from the snapshot
+   - Sets `PrintItem.version` to the restored version
+   - Returns the restored state
+   - 404 if the requested version doesn't exist or predates the first snapshot
+
+4. **Rollback lib function** (0.5h)
+   - `src/lib/ai/rollback.ts` — `rollbackToVersion(itemId, version)` → restores snapshot + reloads helpers
+   - `rollbackToVersion` also unregisters any custom helpers added after the target version
+   - Callable from both API route and chat store
+
+5. **Chat UI: rollback interaction** (1h)
+   - Each tool call card shows a version badge e.g. "(v3)" with "[↩ Rollback]" link
+   - Clicking rollback: calls rollback API → templateStore updates → preview re-renders → chat message shows "Reverted to v3"
+   - Global "Undo" button in chat header → steps back one version
+   - Optional: "Redo" button if subsequent versions are preserved (not deleted on rollback)
+
+### Test coverage
+- Snapshot created before each `update_template` — version matches expected
+- Rollback restores html + css + miscText to exact prior state
+- Version sequence correct: v5 → rollback to v3 → version is now 3
+- Rollback to non-existent version returns 404
+- `register_helper` changes are included in miscText snapshot → restored on rollback
+- Optimistic locking: concurrent manual edit detected via version mismatch
+- Rollback to initial state (version 0) works
+
+### Acceptance criteria
+- [ ] Every AI `update_template` creates a versioned snapshot in `PrintItemVersion`
+- [ ] Click "[↩ Rollback]" on a chat change → template and preview revert to prior state
+- [ ] Global "Undo" steps back one version
+- [ ] Rollback restores custom helpers (unregisters ones added after target version)
+- [ ] Redo steps forward if versions are preserved
+- [ ] `curl -X POST /api/items/1/rollback -d '{"version":2}'` restores version 2
+
+---
+
 ## Summary
 
 | Epic | Value | Time | Dependencies |
@@ -404,14 +464,15 @@ Speed boost for common workflows.
 | **4** Multi-User | Login, save projects, collaborate | ~4h | Epic 1 |
 | **5** Visual Editor | Drag-and-drop template editing | ~8h | Epic 1 |
 | **6** Vision + Intelligence | Screenshot → template, auto data analysis | ~5h | Epic 2 |
-| **Total** | | **~45h** | |
+| **7** Auto-Apply + Rollback | Instant live changes, every AI edit is a recoverable snapshot | ~4h | Epic 2 |
+| **Total** | | **~49h** | |
 
 ### Parallelization
 
 ```
 Epic 1 ─────────→ Epic 2 ─────→ Epic 6
-    ↘                ↘
-     Epic 3          Epic 5
+    ↘                ↘               ↘
+     Epic 3          Epic 5         Epic 7
       ↘
        Epic 4
 ```
@@ -420,6 +481,7 @@ Epic 1 ─────────→ Epic 2 ─────→ Epic 6
 - **Epic 4** (Auth) can start once the database schema is stable — parallel with Epics 2-3
 - **Epic 5** (GrapeJS) is independent of AI — can build alongside Epic 2
 - **Epic 6** (Vision) depends on AI core from Epic 2
+- **Epic 7** (Auto-Apply + Rollback) depends on Epic 2's apply infrastructure; can build alongside Epic 5-6
 
 ### Technical Reference
 
