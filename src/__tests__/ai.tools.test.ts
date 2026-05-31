@@ -1,0 +1,246 @@
+import Handlebars from 'handlebars'
+import { describe, it, expect } from 'vitest'
+import {
+  getTemplate,
+  updateTemplate,
+  getDataInfo,
+  analyzeData,
+  renderPreview,
+  getAssets,
+  registerHelper,
+  getData,
+  updateData,
+  getHelpers,
+} from '@/lib/ai/tools'
+
+const TEST_ITEM_ID = 'test-item-123'
+
+describe('getTemplate', () => {
+  it('returns html, css, name properties', async () => {
+    const result = await getTemplate(TEST_ITEM_ID)
+    expect(result).toHaveProperty('html')
+    expect(result).toHaveProperty('css')
+    expect(result).toHaveProperty('name')
+    expect(typeof result.html).toBe('string')
+    expect(typeof result.css).toBe('string')
+    expect(typeof result.name).toBe('string')
+  })
+
+  it('handles item not found', async () => {
+    await expect(getTemplate('non-existent-id')).rejects.toThrow()
+  })
+})
+
+describe('updateTemplate', () => {
+  it('saves html and returns updated version', async () => {
+    const result = await updateTemplate(TEST_ITEM_ID, '<h1>Hello</h1>')
+    expect(result.html).toBe('<h1>Hello</h1>')
+    expect(result).toHaveProperty('version')
+    expect(typeof result.version).toBe('number')
+  })
+
+  it('saves css and returns updated version', async () => {
+    const result = await updateTemplate(TEST_ITEM_ID, undefined, 'h1 { color: red; }')
+    expect(result.css).toBe('h1 { color: red; }')
+    expect(result).toHaveProperty('version')
+    expect(typeof result.version).toBe('number')
+  })
+
+  it('increments version on each call', async () => {
+    const first = await updateTemplate(TEST_ITEM_ID, '<h1>v1</h1>')
+    const second = await updateTemplate(TEST_ITEM_ID, '<h1>v2</h1>')
+    expect(second.version).toBeGreaterThan(first.version)
+  })
+
+  it('handles missing item', async () => {
+    await expect(
+      updateTemplate('non-existent-id', '<h1>test</h1>')
+    ).rejects.toThrow()
+  })
+})
+
+describe('getDataInfo', () => {
+  it('returns columns array, rowCount number, sampleRows', async () => {
+    const result = await getDataInfo(TEST_ITEM_ID)
+    expect(Array.isArray(result.columns)).toBe(true)
+    expect(typeof result.rowCount).toBe('number')
+    expect(Array.isArray(result.sampleRows)).toBe(true)
+  })
+
+  it('handles item with no dataset', async () => {
+    const result = await getDataInfo('item-without-dataset')
+    expect(result.rowCount).toBe(0)
+    expect(result.columns).toEqual([])
+    expect(result.sampleRows).toEqual([])
+  })
+})
+
+describe('analyzeData', () => {
+  it('returns count of duplicates', async () => {
+    const result = await analyzeData(TEST_ITEM_ID)
+    expect(typeof result.duplicates).toBe('number')
+    expect(result.duplicates).toBeGreaterThanOrEqual(0)
+  })
+
+  it('returns null field counts', async () => {
+    const result = await analyzeData(TEST_ITEM_ID)
+    expect(result).toHaveProperty('nulls')
+    for (const [column, count] of Object.entries(result.nulls)) {
+      expect(typeof column).toBe('string')
+      expect(typeof count).toBe('number')
+      expect(count).toBeGreaterThanOrEqual(0)
+    }
+  })
+
+  it('returns suggestions array', async () => {
+    const result = await analyzeData(TEST_ITEM_ID)
+    expect(Array.isArray(result.suggestions)).toBe(true)
+  })
+})
+
+describe('renderPreview', () => {
+  it('returns screenshot as base64 string', async () => {
+    const result = await renderPreview(TEST_ITEM_ID)
+    expect(result).toHaveProperty('screenshot')
+    expect(typeof result.screenshot).toBe('string')
+    expect(result.screenshot).toMatch(/^[A-Za-z0-9+/=]+$/)
+  })
+})
+
+describe('getAssets', () => {
+  it('returns assets array with filename and url', async () => {
+    const result = await getAssets(TEST_ITEM_ID)
+    expect(result).toHaveProperty('assets')
+    expect(Array.isArray(result.assets)).toBe(true)
+    if (result.assets.length > 0) {
+      expect(result.assets[0]).toHaveProperty('filename')
+      expect(result.assets[0]).toHaveProperty('url')
+      expect(typeof result.assets[0].filename).toBe('string')
+      expect(typeof result.assets[0].url).toBe('string')
+    }
+  })
+})
+
+describe('registerHelper', () => {
+  it('returns success true with helper name', async () => {
+    const result = await registerHelper(
+      TEST_ITEM_ID,
+      'greet',
+      ['name'],
+      'return `Hello, ${name}!`'
+    )
+    expect(result.success).toBe(true)
+    expect(result.name).toBe('greet')
+  })
+
+  it('creates a helper that can be compiled by Handlebars', async () => {
+    const result = await registerHelper(
+      TEST_ITEM_ID,
+      'double',
+      ['n'],
+      'return n * 2'
+    )
+    expect(result.success).toBe(true)
+
+    const tpl = Handlebars.compile('{{double 5}}')
+    expect(tpl({})).toBe('10')
+  })
+})
+
+describe('getData', () => {
+  it('returns columns and rows properties', async () => {
+    const result = await getData(TEST_ITEM_ID)
+    expect(result).toHaveProperty('columns')
+    expect(result).toHaveProperty('rows')
+    expect(Array.isArray(result.columns)).toBe(true)
+    expect(Array.isArray(result.rows)).toBe(true)
+  })
+
+  it('rows is an array of objects with keys matching columns', async () => {
+    const result = await getData(TEST_ITEM_ID)
+    for (const row of result.rows) {
+      expect(typeof row).toBe('object')
+      expect(row).not.toBeNull()
+      for (const col of result.columns) {
+        expect(row).toHaveProperty(col)
+      }
+    }
+  })
+
+  it('handles item with no dataset (returns empty columns and rows)', async () => {
+    const result = await getData('item-without-dataset')
+    expect(result.columns).toEqual([])
+    expect(result.rows).toEqual([])
+  })
+})
+
+describe('updateData', () => {
+  const sampleRows = [
+    { name: 'Alice', age: 30 },
+    { name: 'Bob', age: 25 },
+  ]
+
+  it('accepts a new set of rows and returns success with row count', async () => {
+    const result = await updateData(TEST_ITEM_ID, sampleRows)
+    expect(result.success).toBe(true)
+    expect(result.rowCount).toBe(2)
+  })
+
+  it('rejects non-array input (throws)', async () => {
+    await expect(
+      updateData(TEST_ITEM_ID, 'not-an-array' as unknown as Record<string, unknown>[])
+    ).rejects.toThrow()
+  })
+
+  it('rejects empty array (throws)', async () => {
+    await expect(updateData(TEST_ITEM_ID, [])).rejects.toThrow()
+  })
+
+  it('persists data so getData returns the updated rows', async () => {
+    const freshRows = [
+      { x: 1, y: 2 },
+      { x: 3, y: 4 },
+    ]
+    const updateResult = await updateData(TEST_ITEM_ID, freshRows)
+    expect(updateResult.success).toBe(true)
+    expect(updateResult.rowCount).toBe(2)
+
+    const data = await getData(TEST_ITEM_ID)
+    expect(data.rows).toEqual(freshRows)
+  })
+})
+
+describe('getHelpers', () => {
+  it('returns builtIn array with helper objects', async () => {
+    const result = await getHelpers()
+    expect(result).toHaveProperty('builtIn')
+    expect(Array.isArray(result.builtIn)).toBe(true)
+  })
+
+  it('each builtIn helper has name, params, description as strings', async () => {
+    const result = await getHelpers()
+    for (const helper of result.builtIn) {
+      expect(typeof helper.name).toBe('string')
+      expect(typeof helper.params).toBe('string')
+      expect(typeof helper.description).toBe('string')
+    }
+  })
+
+  it('returns custom array (can be empty)', async () => {
+    const result = await getHelpers()
+    expect(result).toHaveProperty('custom')
+    expect(Array.isArray(result.custom)).toBe(true)
+    if (result.custom.length > 0) {
+      expect(result.custom[0]).toHaveProperty('name')
+      expect(result.custom[0]).toHaveProperty('params')
+      expect(result.custom[0]).toHaveProperty('body')
+    }
+  })
+
+  it('includes core helpers like sortBy, filterBy in builtIn', async () => {
+    const result = await getHelpers()
+    const names = result.builtIn.map((h) => h.name)
+    expect(names).toContain('sortBy')
+    expect(names).toContain('filterBy')
+  })
+})

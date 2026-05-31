@@ -125,26 +125,36 @@ Build the core editor loop without AI or auth. This is the foundation everything
 
 ---
 
-## Epic 2: AI Agent (~8h)
+## Epic 2: AI Agent (~10h)
 
 **User value:** "Design by conversation — describe what you want, the AI builds it."
 
-The differentiator. The user talks to an AI that edits the template, analyzes data, and iterates with them.
+The differentiator. The user talks to an AI that edits the template, analyzes data, creates custom Handlebars helpers, and iterates with them.
+
+**Provider-agnostic LLM integration:** The agent supports any LLM provider configured via `.env` — no UI selection. The user sets `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL` in `.env` and the provider abstraction layer normalizes chat completions, streaming SSE, and tool calling across providers.
 
 ### Tasks
 
-1. **Mistral SDK integration** (1.5h)
-   - `lib/ai-service.ts` — SSE streaming with Mistral
+1. **Provider-agnostic LLM integration** (2h)
+   - `lib/ai/types.ts` — ProviderConfig, ChatMessage, ToolCall, ToolResult types
+   - `lib/ai/provider.ts` — abstract base class: `chat()`, `chatStream()`, `supportsToolCalling()`
+   - `lib/ai/providers/openai.ts` — OpenAI-compatible (OpenAI, DeepSeek, Together, Groq, etc.)
+   - `lib/ai/providers/anthropic.ts` — Anthropic Claude
+   - `lib/ai/providers/mistral.ts` — Mistral AI
+   - `lib/ai/providers/google.ts` — Google Gemini
+   - `lib/ai/registry.ts` — reads `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL` from env, instantiates correct provider
+   - `lib/ai-service.ts` — SSE streaming endpoint using the resolved provider
    - `POST /api/ai/chat` — streaming endpoint
-   - Tool-calling loop with Mistral's function-calling API
+   - Tool-calling loop with the provider's function-calling API
 
-2. **Tool definitions** (2h)
+2. **Tool definitions** (2.5h)
    - `get_template()` — returns current HTML + CSS
    - `update_template(html?, css?, name?)` — saves changes, increments version
    - `get_data_info()` — returns DataSet columns, row count, sample rows
    - `analyze_data()` — deep analysis (duplicates, nulls, suggestions)
    - `render_preview()` — returns base64 screenshot of preview
    - `get_assets()` — lists uploaded images
+   - `register_helper(name, params, body)` — creates a custom Handlebars helper stored in `PrintItem.miscText.customHelpers`, usable immediately in template and preview
 
 3. **Chat UI** (2.5h)
    - MessageList — markdown rendering, code blocks with "Apply" button
@@ -152,27 +162,40 @@ The differentiator. The user talks to an AI that edits the template, analyzes da
    - ChatSidebar — resizable panel, scroll persistence
    - SSE stream reader — streams text and tool events in real-time
 
-4. **System prompt + context** (1h)
+4. **System prompt + context** (1.5h)
    - Injects current template (HTML + CSS)
    - Injects DataSet schema (columns, sample rows, row count)
-   - Injects available Handlebars helpers
+   - Injects all 23 available Handlebars helpers with signatures and examples (`lib/handlebars-helpers.ts` + `lib/handlebars-helpers.data.ts`)
+   - Injects custom helpers already registered in `PrintItem.miscText.customHelpers`
    - Injects available assets
+   - Instructions for creating custom helpers via `register_helper` tool
 
 5. **"Apply" button flow** (1h)
    - Tool call display → diff summary → "Apply Changes" button
    - On click: updates Zustand templateStore → triggers preview → PUT to DB
    - Version increment on each change
+   - For `register_helper` calls: reload helper registry and re-render preview
+
+6. **Helper management UI** (0.5h)
+   - Show registered custom helpers and their source code in chat sidebar
+   - Option to delete or edit a custom helper
+   - Clear visual when a helper is active in the current template
 
 ### Test coverage
-- Tool handler unit tests (each returns correct JSON)
+- Provider abstraction — each provider returns correct ChatMessage format
+- Tool handler unit tests (each returns correct JSON, including `register_helper`)
 - SSE stream formatting
-- System prompt construction
+- System prompt construction (includes all 23 helpers + custom helpers)
 - "Apply" flow — store updates correctly
+- Helper registration round-trip: tool call → persist → re-render
 
 ### Acceptance criteria
+- [ ] `LLM_PROVIDER=openai LLM_API_KEY=...` in `.env` → agent uses OpenAI
+- [ ] `LLM_PROVIDER=anthropic LLM_API_KEY=...` → agent uses Claude
 - [ ] Send "Make the title bigger and blue" → AI calls `update_template` → change appears in preview
 - [ ] Send "What data do I have?" → AI calls `get_data_info` → shows column summary
 - [ ] AI code suggestion shows "Apply" button → click it → template updates
+- [ ] Send "Create a helper that formats phone numbers" → AI calls `register_helper` → helper available in template
 - [ ] Conversation persists on page refresh
 
 ---
@@ -365,12 +388,12 @@ Speed boost for common workflows.
 | Epic | Value | Time | Dependencies |
 |------|-------|------|-------------|
 | **1** Working Editor | Upload CSV, edit template, preview, download PDF | ~12h | None |
-| **2** AI Agent | Design by conversation | ~8h | Epic 1 |
+| **2** AI Agent | Design by conversation, any LLM via `.env`, custom Handlebars helpers | ~10h | Epic 1 |
 | **3** Production PDF | Print-ready export with CMYK, bleed, crop marks | ~6h | Epic 1 |
 | **4** Multi-User | Login, save projects, collaborate | ~4h | Epic 1 |
 | **5** Visual Editor | Drag-and-drop template editing | ~8h | Epic 1 |
 | **6** Vision + Intelligence | Screenshot → template, auto data analysis | ~5h | Epic 2 |
-| **Total** | | **~43h** | |
+| **Total** | | **~45h** | |
 
 ### Parallelization
 

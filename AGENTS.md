@@ -14,7 +14,7 @@
 ## Development Practices
 
 - **TDD**: Use red/green testing for every implementation. Write the test first (red), implement until it passes (green), then refactor.
-- **Test first**: Before writing any implementation code, write the test that defines the expected behavior.
+- **Test first**: Before writing any implementation code, write the test that defines the expected behavior. NO IMPLEMENTATION if there is no RED test available.
 - **Commit strategy**: RED commit (test written, fails) → GREEN commit (implementation passes test) → REFACTOR commit (clean up).
 - **Run tests locally**: `npm run test` (Next.js) or `cd pdf-service && pytest -v` (Python).
 - **CI**: Tests run automatically on every push/PR via `.github/workflows/test.yml`.
