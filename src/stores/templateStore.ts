@@ -9,6 +9,7 @@ interface TemplateState {
   isSaving: boolean
   lastSaved: Date | null
   error: string | null
+  version: number
 
   setItemId: (id: number) => void
   setHtml: (html: string) => void
@@ -26,6 +27,7 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
   isSaving: false,
   lastSaved: null,
   error: null,
+  version: 0,
 
   setItemId: (id) => {
     set({ itemId: id, error: null })

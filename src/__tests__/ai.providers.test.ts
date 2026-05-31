@@ -3,6 +3,8 @@ import { ChatMessage, ToolCall, ToolResult, ProviderConfig } from '@/lib/ai/type
 import { AiProvider } from '@/lib/ai/provider'
 import { OpenAIProvider } from '@/lib/ai/providers/openai'
 import { AnthropicProvider } from '@/lib/ai/providers/anthropic'
+import { MistralProvider } from '@/lib/ai/providers/mistral'
+import { GoogleProvider } from '@/lib/ai/providers/google'
 
 describe('AI Provider Types', () => {
   it('ChatMessage has correct shape (role: string, content: string, toolCalls?: ToolCall[])', () => {
@@ -115,6 +117,15 @@ describe('OpenAI Provider', () => {
     expect(result).toBeDefined()
     expect(result).toHaveProperty('content')
   })
+
+  it('returns error message when API call fails (no real credentials)', async () => {
+    const provider = new OpenAIProvider(config)
+    const result = await provider.chat([
+      { role: 'user', content: 'Hello' },
+    ])
+    expect(result.role).toBe('assistant')
+    expect(typeof result.content).toBe('string')
+  })
 })
 
 describe('Anthropic Provider', () => {
@@ -150,5 +161,110 @@ describe('Anthropic Provider', () => {
     expect(result.role).toBe('assistant')
     expect(typeof result.content).toBe('string')
     expect(result.content.length).toBeGreaterThan(0)
+  })
+
+  it('returns error message when API call fails (no real credentials)', async () => {
+    const provider = new AnthropicProvider(config)
+    const result = await provider.chat([
+      { role: 'user', content: 'Hello' },
+    ])
+    expect(result.role).toBe('assistant')
+    expect(typeof result.content).toBe('string')
+  })
+})
+
+describe('Mistral Provider', () => {
+  const config: ProviderConfig = {
+    apiKey: 'sk-test',
+    model: 'mistral-large-latest',
+  }
+
+  it('constructor accepts ProviderConfig', () => {
+    const provider = new MistralProvider(config)
+    expect(provider).toBeInstanceOf(MistralProvider)
+    expect(provider).toBeInstanceOf(AiProvider)
+  })
+
+  it('chat() returns Promise<ChatMessage>', async () => {
+    const provider = new MistralProvider(config)
+    const result = await provider.chat([
+      { role: 'system', content: 'You are helpful' },
+      { role: 'user', content: 'Hello' },
+    ])
+    expect(result).toHaveProperty('role')
+    expect(result).toHaveProperty('content')
+  })
+
+  it('supportsToolCalling() returns true', () => {
+    const provider = new MistralProvider(config)
+    expect(provider.supportsToolCalling()).toBe(true)
+  })
+
+  it('correctly formats a chat message with system + user roles', async () => {
+    const provider = new MistralProvider(config)
+    const result = await provider.chat([
+      { role: 'system', content: 'You are a helpful assistant' },
+      { role: 'user', content: 'What is 2+2?' },
+    ])
+    expect(result.role).toBe('assistant')
+    expect(typeof result.content).toBe('string')
+    expect(result.content.length).toBeGreaterThan(0)
+  })
+
+  it('returns error message when API call fails (no real credentials)', async () => {
+    const provider = new MistralProvider(config)
+    const result = await provider.chat([
+      { role: 'user', content: 'Hello' },
+    ])
+    expect(result.role).toBe('assistant')
+    expect(typeof result.content).toBe('string')
+  })
+})
+
+describe('Google Provider', () => {
+  const config: ProviderConfig = {
+    apiKey: 'test',
+    model: 'gemini-2.0-flash',
+  }
+
+  it('constructor accepts ProviderConfig', () => {
+    const provider = new GoogleProvider(config)
+    expect(provider).toBeInstanceOf(GoogleProvider)
+    expect(provider).toBeInstanceOf(AiProvider)
+  })
+
+  it('chat() returns Promise<ChatMessage>', async () => {
+    const provider = new GoogleProvider(config)
+    const result = await provider.chat([
+      { role: 'system', content: 'You are helpful' },
+      { role: 'user', content: 'Hello' },
+    ])
+    expect(result).toHaveProperty('role')
+    expect(result).toHaveProperty('content')
+  })
+
+  it('supportsToolCalling() returns true', () => {
+    const provider = new GoogleProvider(config)
+    expect(provider.supportsToolCalling()).toBe(true)
+  })
+
+  it('correctly formats a chat message with system + user roles', async () => {
+    const provider = new GoogleProvider(config)
+    const result = await provider.chat([
+      { role: 'system', content: 'You are a helpful assistant' },
+      { role: 'user', content: 'What is the capital of France?' },
+    ])
+    expect(result.role).toBe('assistant')
+    expect(typeof result.content).toBe('string')
+    expect(result.content.length).toBeGreaterThan(0)
+  })
+
+  it('returns error message when API call fails (no real credentials)', async () => {
+    const provider = new GoogleProvider(config)
+    const result = await provider.chat([
+      { role: 'user', content: 'Hello' },
+    ])
+    expect(result.role).toBe('assistant')
+    expect(typeof result.content).toBe('string')
   })
 })

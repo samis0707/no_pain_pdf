@@ -125,7 +125,7 @@ Build the core editor loop without AI or auth. This is the foundation everything
 
 ---
 
-## Epic 2: AI Agent (~10h)
+## Epic 2: AI Agent (~11h)
 
 **User value:** "Design by conversation — describe what you want, the AI builds it."
 
@@ -155,6 +155,9 @@ The differentiator. The user talks to an AI that edits the template, analyzes da
    - `render_preview()` — returns base64 screenshot of preview
    - `get_assets()` — lists uploaded images
    - `register_helper(name, params, body)` — creates a custom Handlebars helper stored in `PrintItem.miscText.customHelpers`, usable immediately in template and preview
+   - `get_data(itemId)` — returns full dataset `{ columns: string[], rows: Record<string, unknown>[] }`
+   - `update_data(itemId, rows)` — replaces dataset with AI-transformed rows (validates shape, rejects empty)
+   - `get_helpers()` — returns list of all available Handlebars helpers with signatures, params, and descriptions
 
 3. **Chat UI** (2.5h)
    - MessageList — markdown rendering, code blocks with "Apply" button
@@ -182,12 +185,16 @@ The differentiator. The user talks to an AI that edits the template, analyzes da
    - Clear visual when a helper is active in the current template
 
 ### Test coverage
-- Provider abstraction — each provider returns correct ChatMessage format
-- Tool handler unit tests (each returns correct JSON, including `register_helper`)
-- SSE stream formatting
-- System prompt construction (includes all 23 helpers + custom helpers)
-- "Apply" flow — store updates correctly
+- Provider abstraction — each provider returns correct ChatMessage format (OpenAI, Anthropic, Mistral, Google)
+- Provider error tolerance — returns error message on API failure instead of throwing
+- Tool handler unit tests — all 10 tools return correct JSON, including `get_data`, `update_data`, `get_helpers`
+- Tool-calling orchestration loop — tool dispatch → execution → result → final response
+- SSE stream formatting + client-side SSE reader
+- System prompt construction (includes all 23 helpers + custom helpers + dataset schema)
+- "Apply" flow — store updates correctly, version increments
+- Conversation persistence — save/load/clear messages per itemId
 - Helper registration round-trip: tool call → persist → re-render
+- Chat API route — streaming SSE endpoint with text + tool call events
 
 ### Acceptance criteria
 - [ ] `LLM_PROVIDER=openai LLM_API_KEY=...` in `.env` → agent uses OpenAI
@@ -197,6 +204,9 @@ The differentiator. The user talks to an AI that edits the template, analyzes da
 - [ ] AI code suggestion shows "Apply" button → click it → template updates
 - [ ] Send "Create a helper that formats phone numbers" → AI calls `register_helper` → helper available in template
 - [ ] Conversation persists on page refresh
+- [ ] Send "What helpers can I use?" → AI calls `get_helpers` → lists helpers with signatures
+- [ ] Send "Remove duplicate rows" → AI calls `get_data` → modifies JSON → calls `update_data` → data cleaned
+- [ ] Conversation survives page refresh (saved per itemId)
 
 ---
 
@@ -388,7 +398,7 @@ Speed boost for common workflows.
 | Epic | Value | Time | Dependencies |
 |------|-------|------|-------------|
 | **1** Working Editor | Upload CSV, edit template, preview, download PDF | ~12h | None |
-| **2** AI Agent | Design by conversation, any LLM via `.env`, custom Handlebars helpers | ~10h | Epic 1 |
+| **2** AI Agent | Design by conversation, any LLM via `.env`, custom Handlebars helpers | ~11h | Epic 1 |
 | **3** Production PDF | Print-ready export with CMYK, bleed, crop marks | ~6h | Epic 1 |
 | **4** Multi-User | Login, save projects, collaborate | ~4h | Epic 1 |
 | **5** Visual Editor | Drag-and-drop template editing | ~8h | Epic 1 |

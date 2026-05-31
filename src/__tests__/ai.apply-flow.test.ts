@@ -15,6 +15,7 @@ beforeEach(() => {
     isSaving: false,
     lastSaved: null,
     error: null,
+    version: 0,
   })
   usePreviewStore.setState({
     compiledHtml: '',
