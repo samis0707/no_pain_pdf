@@ -36,6 +36,14 @@
 3. REFACTOR: Clean up the code while keeping tests green
 ```
 
+### Avoiding false positives
+
+Tests must assert **behavior** (side effects, state changes, branch coverage), not just **shape** (presence/type of properties). A test is a false positive if it passes when the entire function body is `return { role: 'assistant', content: '' }`.
+
+- Prefer mock/fake providers over real network calls for deterministic tests
+- For branching logic (e.g. tool-calling loops, conditional returns), write a test per branch that verifies the branch was actually taken
+- If a property can only be set by executing real logic, assert on it rather than on a property that a default/empty value also satisfies
+
 ## Related Documents
 
 - `docs/IMPLEMENTATION_PLAN.md` — Epic-based implementation plan with user value per iteration
