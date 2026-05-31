@@ -10,7 +10,7 @@ export class MistralProvider extends AiProvider {
     return true
   }
 
-  async chat(messages: ChatMessage[]): Promise<ChatMessage> {
+  async chat(messages: ChatMessage[], _tools?: unknown[]): Promise<ChatMessage> {
     try {
       const baseUrl = this.config.baseUrl || 'https://api.mistral.ai/v1'
       const response = await fetch(`${baseUrl}/chat/completions`, {

@@ -9,7 +9,7 @@ export abstract class AiProvider {
 
   abstract chatStream(messages: ChatMessage[], tools?: unknown[]): AsyncGenerator<string>
 
-  async chat(_messages: ChatMessage[]): Promise<ChatMessage> {
+  async chat(_messages: ChatMessage[], _tools?: unknown[]): Promise<ChatMessage> {
     throw new Error('chat() not implemented. Use a concrete provider subclass.')
   }
 

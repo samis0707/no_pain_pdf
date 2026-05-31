@@ -13,6 +13,7 @@ export interface ChatMessage {
   role: string
   content: string
   toolCalls?: ToolCall[]
+  toolCallId?: string
 }
 
 export interface ProviderConfig {

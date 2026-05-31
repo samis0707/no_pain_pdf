@@ -10,7 +10,7 @@ export class AnthropicProvider extends AiProvider {
     return true
   }
 
-  async chat(messages: ChatMessage[]): Promise<ChatMessage> {
+  async chat(messages: ChatMessage[], _tools?: unknown[]): Promise<ChatMessage> {
     try {
       const baseUrl = this.config.baseUrl || 'https://api.anthropic.com/v1'
       const systemMessages = messages.filter(m => m.role === 'system')

@@ -10,19 +10,23 @@ export class OpenAIProvider extends AiProvider {
     return true
   }
 
-  async chat(messages: ChatMessage[]): Promise<ChatMessage> {
+  async chat(messages: ChatMessage[], tools?: unknown[]): Promise<ChatMessage> {
     try {
       const baseUrl = this.config.baseUrl || 'https://api.openai.com/v1'
+      const body: Record<string, unknown> = {
+        model: this.config.model,
+        messages,
+      }
+      if (tools && tools.length > 0) {
+        body.tools = tools
+      }
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.config.apiKey}`,
         },
-        body: JSON.stringify({
-          model: this.config.model,
-          messages,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {

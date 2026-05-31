@@ -153,36 +153,47 @@ interface HelperInfo {
   description: string
 }
 
-export async function getHelpers(): Promise<{
+const BUILT_IN_HELPERS: HelperInfo[] = [
+  { name: 'formatDate', params: 'dateStr, format', description: 'Format a date string (e.g. YYYY-MM-DD)' },
+  { name: 'truncate', params: 'str, length', description: 'Truncate a string to the given length' },
+  { name: 'ifEquals', params: 'a, b', description: 'Conditionally render block if a === b' },
+  { name: 'sortBy', params: 'arr, field', description: 'Sort an array by a field (ascending)' },
+  { name: 'sortByDesc', params: 'arr, field', description: 'Sort an array by a field (descending)' },
+  { name: 'filterBy', params: 'arr, field, value', description: 'Filter array where field === value' },
+  { name: 'filterNot', params: 'arr, field, value', description: 'Filter array where field !== value' },
+  { name: 'groupBy', params: 'arr, field', description: 'Group array items by a field' },
+  { name: 'first', params: 'arr, n', description: 'Return the first n items of an array' },
+  { name: 'last', params: 'arr, n', description: 'Return the last n items of an array' },
+  { name: 'slice', params: 'arr, start, end', description: 'Slice an array from start to end' },
+  { name: 'pluck', params: 'arr, field', description: 'Extract a field from each item in an array' },
+  { name: 'concat', params: '...values', description: 'Concatenate values into a string' },
+  { name: 'lower', params: 'str', description: 'Convert a string to lowercase' },
+  { name: 'upper', params: 'str', description: 'Convert a string to uppercase' },
+  { name: 'defaultStr', params: 'value, fallback', description: 'Return fallback if value is null/empty' },
+  { name: 'eq', params: 'a, b', description: 'Return true if a === b' },
+  { name: 'gt', params: 'a, b', description: 'Return true if a > b' },
+  { name: 'gte', params: 'a, b', description: 'Return true if a >= b' },
+  { name: 'lt', params: 'a, b', description: 'Return true if a < b' },
+  { name: 'lte', params: 'a, b', description: 'Return true if a <= b' },
+  { name: 'and', params: '...conditions', description: 'Return true if all conditions are truthy' },
+  { name: 'or', params: '...conditions', description: 'Return true if any condition is truthy' },
+  { name: 'not', params: 'a', description: 'Return the logical negation of a' },
+]
+
+export async function getHelpers(
+  itemId?: string,
+): Promise<{
   builtIn: HelperInfo[]
   custom: Array<{ name: string; params: string[]; body: string }>
 }> {
-  const builtIn: HelperInfo[] = [
-    { name: 'formatDate', params: 'dateStr, format', description: 'Format a date string (e.g. YYYY-MM-DD)' },
-    { name: 'truncate', params: 'str, length', description: 'Truncate a string to the given length' },
-    { name: 'ifEquals', params: 'a, b', description: 'Conditionally render block if a === b' },
-    { name: 'sortBy', params: 'arr, field', description: 'Sort an array by a field (ascending)' },
-    { name: 'sortByDesc', params: 'arr, field', description: 'Sort an array by a field (descending)' },
-    { name: 'filterBy', params: 'arr, field, value', description: 'Filter array where field === value' },
-    { name: 'filterNot', params: 'arr, field, value', description: 'Filter array where field !== value' },
-    { name: 'groupBy', params: 'arr, field', description: 'Group array items by a field' },
-    { name: 'first', params: 'arr, n', description: 'Return the first n items of an array' },
-    { name: 'last', params: 'arr, n', description: 'Return the last n items of an array' },
-    { name: 'slice', params: 'arr, start, end', description: 'Slice an array from start to end' },
-    { name: 'pluck', params: 'arr, field', description: 'Extract a field from each item in an array' },
-    { name: 'concat', params: '...values', description: 'Concatenate values into a string' },
-    { name: 'lower', params: 'str', description: 'Convert a string to lowercase' },
-    { name: 'upper', params: 'str', description: 'Convert a string to uppercase' },
-    { name: 'defaultStr', params: 'value, fallback', description: 'Return fallback if value is null/empty' },
-    { name: 'eq', params: 'a, b', description: 'Return true if a === b' },
-    { name: 'gt', params: 'a, b', description: 'Return true if a > b' },
-    { name: 'gte', params: 'a, b', description: 'Return true if a >= b' },
-    { name: 'lt', params: 'a, b', description: 'Return true if a < b' },
-    { name: 'lte', params: 'a, b', description: 'Return true if a <= b' },
-    { name: 'and', params: '...conditions', description: 'Return true if all conditions are truthy' },
-    { name: 'or', params: '...conditions', description: 'Return true if any condition is truthy' },
-    { name: 'not', params: 'a', description: 'Return the logical negation of a' },
-  ]
+  const custom: Array<{ name: string; params: string[]; body: string }> = []
 
-  return { builtIn, custom: [] }
+  if (itemId) {
+    const item = store.get(itemId)
+    if (item) {
+      custom.push(...item.customHelpers)
+    }
+  }
+
+  return { builtIn: BUILT_IN_HELPERS, custom }
 }
