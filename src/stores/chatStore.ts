@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { createSSEReader } from '@/lib/ai/sse-reader'
+import { applyTemplateChanges } from '@/lib/ai/apply-flow'
+import { useTemplateStore } from '@/stores/templateStore'
 import type { ChatMessage } from '@/lib/ai/types'
 
 export type { ChatMessage }
@@ -89,6 +91,29 @@ export const useChatStore = create<ChatState>()((set, get) => ({
             return { messages: msgs }
           })
         } else if (event.type === 'tool_call') {
+          if (event.data.name === 'update_template') {
+            applyTemplateChanges({
+              html: event.data.args.html as string | undefined,
+              css: event.data.args.css as string | undefined,
+            })
+            await useTemplateStore.getState().saveTemplate()
+          } else if (event.data.name === 'register_helper') {
+            const currentMisc = useTemplateStore.getState().miscText
+            let parsed: Record<string, unknown> = {}
+            if (currentMisc) {
+              try { parsed = JSON.parse(currentMisc) } catch {}
+            }
+            const customHelpers: Array<{ name: string; params: string[]; body: string }> =
+              Array.isArray(parsed.customHelpers) ? parsed.customHelpers : []
+            customHelpers.push({
+              name: event.data.args.name as string,
+              params: event.data.args.params as string[],
+              body: event.data.args.body as string,
+            })
+            applyTemplateChanges({ miscText: JSON.stringify({ ...parsed, customHelpers }) })
+            await useTemplateStore.getState().saveTemplate()
+          }
+
           set((state) => ({
             messages: [
               ...state.messages,

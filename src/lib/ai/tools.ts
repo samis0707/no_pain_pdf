@@ -119,7 +119,7 @@ export async function registerHelper(
   body: string,
 ): Promise<{ success: boolean; name: string }> {
   const item = getItem(itemId)
-  const fn = new Function(...params, body)
+  const fn = new Function(...params, body) as Handlebars.HelperDelegate
   Handlebars.registerHelper(name, fn)
   item.customHelpers.push({ name, params, body })
   return { success: true, name }

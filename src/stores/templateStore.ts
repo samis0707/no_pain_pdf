@@ -58,7 +58,7 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
   },
 
   saveTemplate: async () => {
-    const { itemId, html, css } = get()
+    const { itemId, html, css, miscText } = get()
     if (!itemId) return
 
     set({ isSaving: true, error: null })
@@ -66,7 +66,7 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
       const res = await fetch(`/api/items/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html, css }),
+        body: JSON.stringify({ html, css, miscText }),
       })
       if (!res.ok) throw new Error('Failed to save template')
       set({ lastSaved: new Date() })

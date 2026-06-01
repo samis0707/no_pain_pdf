@@ -54,8 +54,8 @@ describe('AI Provider Types', () => {
 describe('AiProvider Base Class', () => {
   it('throws if chat() is called directly (abstract method enforcement)', async () => {
     class TestProvider extends AiProvider {
-      async chatStream() {
-        return (async function* () {})()
+      async *chatStream() {
+        // empty generator
       }
     }
     const provider = new TestProvider({ apiKey: 'test', model: 'test' })
@@ -67,8 +67,8 @@ describe('AiProvider Base Class', () => {
       async chat() {
         return { role: 'assistant', content: '' }
       }
-      async chatStream() {
-        return (async function* () {})()
+      async *chatStream() {
+        // empty generator
       }
     }
     const provider = new TestProvider({ apiKey: 'test', model: 'test' })

@@ -20,7 +20,7 @@ export function loadHelpers(miscText?: string): void {
   for (const h of helpers) {
     if (!h.name || !Array.isArray(h.params) || typeof h.body !== 'string') continue
     try {
-      const fn = new Function(...h.params, h.body)
+      const fn = new Function(...h.params, h.body) as Handlebars.HelperDelegate
       Handlebars.registerHelper(h.name, fn)
       customHelperNames.add(h.name)
     } catch {
