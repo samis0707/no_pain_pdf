@@ -1,6 +1,18 @@
 import { AiProvider } from '../provider'
 import { ChatMessage, ProviderConfig } from '../types'
 
+function convertTool(tool: unknown): Record<string, unknown> {
+  const openaiTool = tool as { type?: string; function?: { name: string; description?: string; parameters?: Record<string, unknown> } }
+  if (openaiTool?.function) {
+    return {
+      name: openaiTool.function.name,
+      description: openaiTool.function.description || '',
+      input_schema: openaiTool.function.parameters || { type: 'object', properties: {} },
+    }
+  }
+  return tool as Record<string, unknown>
+}
+
 export class AnthropicProvider extends AiProvider {
   constructor(config: ProviderConfig) {
     super(config)
@@ -10,11 +22,22 @@ export class AnthropicProvider extends AiProvider {
     return true
   }
 
-  async chat(messages: ChatMessage[], _tools?: unknown[]): Promise<ChatMessage> {
+  async chat(messages: ChatMessage[], tools?: unknown[]): Promise<ChatMessage> {
     try {
       const baseUrl = this.config.baseUrl || 'https://api.anthropic.com/v1'
       const systemMessages = messages.filter(m => m.role === 'system')
       const nonSystemMessages = messages.filter(m => m.role !== 'system')
+
+      const body: Record<string, unknown> = {
+        model: this.config.model,
+        system: systemMessages.map(m => m.content).join('\n') || undefined,
+        messages: nonSystemMessages.map(m => ({ role: m.role, content: m.content })),
+        max_tokens: 4096,
+      }
+
+      if (tools && tools.length > 0) {
+        body.tools = tools.map(convertTool)
+      }
 
       const response = await fetch(`${baseUrl}/messages`, {
         method: 'POST',
@@ -23,21 +46,23 @@ export class AnthropicProvider extends AiProvider {
           'x-api-key': this.config.apiKey,
           'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({
-          model: this.config.model,
-          system: systemMessages.map(m => m.content).join('\n') || undefined,
-          messages: nonSystemMessages.map(m => ({ role: m.role, content: m.content })),
-          max_tokens: 4096,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
         return { role: 'assistant', content: `Error: API responded with status ${response.status}` }
       }
 
-      const data = await response.json() as { content: Array<{ text: string }> }
-      const text = data.content?.[0]?.text || ''
-      return { role: 'assistant', content: text }
+      const data = await response.json() as { content: Array<{ type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }> }
+      const textBlock = data.content?.find((c) => c.type === 'text')
+      const text = textBlock?.text || ''
+      const toolUseBlocks = data.content?.filter((c) => c.type === 'tool_use')
+      const toolCalls = toolUseBlocks?.map((tc) => ({
+        id: tc.id || '',
+        name: tc.name || '',
+        args: tc.input || {},
+      }))
+      return { role: 'assistant', content: text, toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined }
     } catch (error) {
       return {
         role: 'assistant',
@@ -46,11 +71,23 @@ export class AnthropicProvider extends AiProvider {
     }
   }
 
-  async *chatStream(messages: ChatMessage[], _tools?: unknown[]): AsyncGenerator<string> {
+  async *chatStream(messages: ChatMessage[], tools?: unknown[]): AsyncGenerator<string> {
     try {
       const baseUrl = this.config.baseUrl || 'https://api.anthropic.com/v1'
       const systemMessages = messages.filter(m => m.role === 'system')
       const nonSystemMessages = messages.filter(m => m.role !== 'system')
+
+      const body: Record<string, unknown> = {
+        model: this.config.model,
+        system: systemMessages.map(m => m.content).join('\n') || undefined,
+        messages: nonSystemMessages.map(m => ({ role: m.role, content: m.content })),
+        max_tokens: 4096,
+        stream: true,
+      }
+
+      if (tools && tools.length > 0) {
+        body.tools = tools.map(convertTool)
+      }
 
       const response = await fetch(`${baseUrl}/messages`, {
         method: 'POST',
@@ -59,13 +96,7 @@ export class AnthropicProvider extends AiProvider {
           'x-api-key': this.config.apiKey,
           'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({
-          model: this.config.model,
-          system: systemMessages.map(m => m.content).join('\n') || undefined,
-          messages: nonSystemMessages.map(m => ({ role: m.role, content: m.content })),
-          max_tokens: 4096,
-          stream: true,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {

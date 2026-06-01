@@ -63,4 +63,56 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt(baseContext)
     expect(prompt).toContain('Test Flyer')
   })
+
+  it('includes available assets section when assets are provided', () => {
+    const context = {
+      ...baseContext,
+      assets: [
+        { filename: 'logo.png', url: '/api/assets/file/logo.png' },
+        { filename: 'qr-code.svg', url: '/api/assets/file/qr-code.svg' },
+      ],
+    }
+    const prompt = buildSystemPrompt(context)
+    expect(prompt).toContain('## Available Assets')
+    expect(prompt).toContain('logo.png')
+    expect(prompt).toContain('/api/assets/file/logo.png')
+    expect(prompt).toContain('qr-code.svg')
+    expect(prompt).toContain('/api/assets/file/qr-code.svg')
+  })
+
+  it('does not include available assets section when assets list is empty', () => {
+    const prompt = buildSystemPrompt(baseContext)
+    expect(prompt).not.toContain('## Available Assets')
+  })
+
+  it('includes correct section headers in order', () => {
+    const prompt = buildSystemPrompt(baseContext)
+    expect(prompt).toContain('## Current Template')
+    expect(prompt).toContain('## Dataset')
+    expect(prompt).toContain('## Available Handlebars Helpers')
+    expect(prompt).toContain('## Creating Custom Helpers')
+  })
+
+  it('does not include custom helpers section when none are registered', () => {
+    const prompt = buildSystemPrompt(baseContext)
+    expect(prompt).not.toContain('## Custom Helpers Already Registered')
+  })
+
+  it('includes all built-in helpers with signature format', () => {
+    const prompt = buildSystemPrompt(baseContext)
+    for (const name of DATA_HELPER_NAMES) {
+      expect(prompt).toContain(`\`${name}(`)
+    }
+  })
+
+  it('handles empty template gracefully', () => {
+    const context = {
+      ...baseContext,
+      templateHtml: '',
+      templateCss: '',
+    }
+    const prompt = buildSystemPrompt(context)
+    expect(prompt).toContain('```html')
+    expect(prompt).toContain('```css')
+  })
 })
