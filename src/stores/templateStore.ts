@@ -1,5 +1,14 @@
 import { create } from 'zustand'
 
+interface PageFormatState {
+  id: number
+  name: string
+  widthMm: number
+  heightMm: number
+  category: string
+  isPreset: boolean
+}
+
 interface TemplateState {
   itemId: number | null
   html: string
@@ -10,13 +19,17 @@ interface TemplateState {
   lastSaved: Date | null
   error: string | null
   version: number
+  pageFormat: PageFormatState | null
 
   setItemId: (id: number) => void
   setHtml: (html: string) => void
   setCss: (css: string) => void
+  setPageFormat: (format: PageFormatState | null) => void
   fetchTemplate: () => Promise<void>
   saveTemplate: () => Promise<void>
 }
+
+export { type PageFormatState }
 
 export const useTemplateStore = create<TemplateState>()((set, get) => ({
   itemId: null,
@@ -28,6 +41,7 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
   lastSaved: null,
   error: null,
   version: 0,
+  pageFormat: null,
 
   setItemId: (id) => {
     set({ itemId: id, error: null })
@@ -42,6 +56,10 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
     set({ css })
   },
 
+  setPageFormat: (format) => {
+    set({ pageFormat: format })
+  },
+
   fetchTemplate: async () => {
     const { itemId } = get()
     if (!itemId) return
@@ -51,7 +69,7 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
       const res = await fetch(`/api/items/${itemId}`)
       if (!res.ok) throw new Error('Failed to fetch template')
       const data = await res.json()
-      set({ html: data.html ?? '', css: data.css ?? '', name: data.name ?? '', miscText: data.miscText ?? '' })
+      set({ html: data.html ?? '', css: data.css ?? '', name: data.name ?? '', miscText: data.miscText ?? '', pageFormat: data.pageFormat ?? null })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to fetch template' })
     }
