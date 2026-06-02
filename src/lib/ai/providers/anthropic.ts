@@ -13,6 +13,56 @@ function convertTool(tool: unknown): Record<string, unknown> {
   return tool as Record<string, unknown>
 }
 
+function formatMessages(messages: ChatMessage[]): { system: string | undefined; formatted: Record<string, unknown>[] } {
+  let systemStr: string | undefined
+  const formatted: Record<string, unknown>[] = []
+
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      systemStr = systemStr
+        ? `${systemStr}\n${msg.content}`
+        : msg.content
+      continue
+    }
+
+    if (msg.role === 'assistant') {
+      const contentBlocks: Record<string, unknown>[] = []
+      if (msg.content) {
+        contentBlocks.push({ type: 'text', text: msg.content })
+      }
+      if (msg.toolCalls) {
+        for (const tc of msg.toolCalls) {
+          contentBlocks.push({
+            type: 'tool_use',
+            id: tc.id,
+            name: tc.name,
+            input: tc.args,
+          })
+        }
+      }
+      if (contentBlocks.length === 0) {
+        contentBlocks.push({ type: 'text', text: '' })
+      }
+      formatted.push({ role: 'assistant', content: contentBlocks })
+    } else if (msg.role === 'tool') {
+      formatted.push({
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: msg.toolCallId || '',
+            content: msg.content,
+          },
+        ],
+      })
+    } else {
+      formatted.push({ role: msg.role, content: msg.content })
+    }
+  }
+
+  return { system: systemStr, formatted }
+}
+
 export class AnthropicProvider extends AiProvider {
   constructor(config: ProviderConfig) {
     super(config)
@@ -25,14 +75,16 @@ export class AnthropicProvider extends AiProvider {
   async chat(messages: ChatMessage[], tools?: unknown[]): Promise<ChatMessage> {
     try {
       const baseUrl = this.config.baseUrl || 'https://api.anthropic.com/v1'
-      const systemMessages = messages.filter(m => m.role === 'system')
-      const nonSystemMessages = messages.filter(m => m.role !== 'system')
+      let { system, formatted } = formatMessages(messages)
 
       const body: Record<string, unknown> = {
         model: this.config.model,
-        system: systemMessages.map(m => m.content).join('\n') || undefined,
-        messages: nonSystemMessages.map(m => ({ role: m.role, content: m.content })),
-        max_tokens: 4096,
+        messages: formatted,
+        max_tokens: 8192,
+      }
+
+      if (system) {
+        body.system = system
       }
 
       if (tools && tools.length > 0) {
@@ -50,7 +102,8 @@ export class AnthropicProvider extends AiProvider {
       })
 
       if (!response.ok) {
-        return { role: 'assistant', content: `Error: API responded with status ${response.status}` }
+        const errBody = await response.text().catch(() => '')
+        return { role: 'assistant', content: `Error: API responded with status ${response.status} - ${errBody}` }
       }
 
       const data = await response.json() as { content: Array<{ type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }> }
@@ -74,15 +127,17 @@ export class AnthropicProvider extends AiProvider {
   async *chatStream(messages: ChatMessage[], tools?: unknown[]): AsyncGenerator<string> {
     try {
       const baseUrl = this.config.baseUrl || 'https://api.anthropic.com/v1'
-      const systemMessages = messages.filter(m => m.role === 'system')
-      const nonSystemMessages = messages.filter(m => m.role !== 'system')
+      let { system, formatted } = formatMessages(messages)
 
       const body: Record<string, unknown> = {
         model: this.config.model,
-        system: systemMessages.map(m => m.content).join('\n') || undefined,
-        messages: nonSystemMessages.map(m => ({ role: m.role, content: m.content })),
-        max_tokens: 4096,
+        messages: formatted,
+        max_tokens: 8192,
         stream: true,
+      }
+
+      if (system) {
+        body.system = system
       }
 
       if (tools && tools.length > 0) {
@@ -100,7 +155,8 @@ export class AnthropicProvider extends AiProvider {
       })
 
       if (!response.ok) {
-        yield `Error: API responded with status ${response.status}`
+        const errBody = await response.text().catch(() => '')
+        yield `Error: API responded with status ${response.status} - ${errBody}`
         return
       }
 
