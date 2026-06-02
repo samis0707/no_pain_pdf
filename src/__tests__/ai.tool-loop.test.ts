@@ -2,9 +2,27 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { executeToolCall, runToolLoop } from '@/lib/ai/tool-loop'
 import { getTemplate } from '@/lib/ai/tools'
 
-const TEST_ITEM_ID = 'test-item-123'
+const TEST_ITEM_ID = '42'
 
 const { mockChat } = vi.hoisted(() => ({ mockChat: vi.fn() }))
+
+const mockPrintItemFindUnique = vi.fn()
+const mockPrintItemUpdate = vi.fn()
+const mockDataSetFindFirst = vi.fn()
+const mockDataSetCreate = vi.fn()
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    printItem: {
+      findUnique: (...args: unknown[]) => mockPrintItemFindUnique(...args),
+      update: (...args: unknown[]) => mockPrintItemUpdate(...args),
+    },
+    dataSet: {
+      findFirst: (...args: unknown[]) => mockDataSetFindFirst(...args),
+      create: (...args: unknown[]) => mockDataSetCreate(...args),
+    },
+  },
+}))
 
 vi.mock('@/lib/ai/registry', () => ({
   createProvider: () => ({
@@ -14,12 +32,26 @@ vi.mock('@/lib/ai/registry', () => ({
   }),
 }))
 
+mockPrintItemFindUnique.mockImplementation(({ where }) => {
+  if (where.id === 42) {
+    return Promise.resolve({
+      id: 42, name: 'Test', html: '<div>hello</div>', css: 'body{}', version: 5, miscText: '{}',
+    })
+  }
+  return Promise.resolve(null)
+})
+mockPrintItemUpdate.mockImplementation(({ where, data }) =>
+  Promise.resolve({ id: where.id, name: 'Test', html: data.html ?? '', css: data.css ?? '', version: data.version ?? 6 })
+)
+mockDataSetFindFirst.mockResolvedValue(null)
+mockDataSetCreate.mockResolvedValue({ id: 1 })
+
 describe('executeToolCall', () => {
   it('dispatches get_template tool call and returns result with toolCallId', async () => {
     const result = await executeToolCall(TEST_ITEM_ID, {
       id: 'call_1',
       name: 'get_template',
-      args: { itemId: TEST_ITEM_ID },
+      args: {},
     })
     expect(result).toHaveProperty('toolCallId', 'call_1')
     expect(result).toHaveProperty('result')
@@ -48,7 +80,7 @@ describe('runToolLoop', () => {
         role: 'assistant',
         content: '',
         toolCalls: [
-          { id: 'call_1', name: 'get_template', args: { itemId: TEST_ITEM_ID } },
+          { id: 'call_1', name: 'get_template', args: {} },
         ],
       })
       .mockResolvedValueOnce({
@@ -71,7 +103,7 @@ describe('runToolLoop', () => {
         role: 'assistant',
         content: '',
         toolCalls: [
-          { id: 'call_1', name: 'get_template', args: { itemId: TEST_ITEM_ID } },
+          { id: 'call_1', name: 'get_template', args: {} },
         ],
       })
       .mockResolvedValueOnce({
@@ -102,7 +134,7 @@ describe('runToolLoop', () => {
         role: 'assistant',
         content: '',
         toolCalls: [
-          { id: 'call_1', name: 'get_template', args: { itemId: TEST_ITEM_ID } },
+          { id: 'call_1', name: 'get_template', args: {} },
         ],
       })
       .mockResolvedValueOnce({

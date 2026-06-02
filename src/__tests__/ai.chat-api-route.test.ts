@@ -23,6 +23,14 @@ vi.mock('@/lib/ai/tools', () => ({
   getDataInfo: vi.fn().mockResolvedValue({ columns: ['col1'], rowCount: 5, sampleRows: [] }),
   getHelpers: vi.fn().mockResolvedValue({ builtIn: [], custom: [] }),
   getAssets: vi.fn().mockResolvedValue({ assets: [] }),
+  initItem: vi.fn(),
+}))
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    printItem: { findUnique: vi.fn().mockResolvedValue(null) },
+    dataSet: { findMany: vi.fn().mockResolvedValue([]) },
+  },
 }))
 
 const { POST } = await import('@/app/api/ai/chat/route')

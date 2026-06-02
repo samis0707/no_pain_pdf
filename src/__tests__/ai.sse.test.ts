@@ -18,9 +18,9 @@ describe('SSE event formatting', () => {
     const result = formatToolCallEvent('update_template', {
       html: '<h1>New</h1>',
       css: 'h1 { color: red; }',
-    })
+    }, 'call_123')
     expect(result).toBe(
-      'event: message\ndata: {"type":"tool_call","tool":"update_template","args":{"html":"<h1>New</h1>","css":"h1 { color: red; }"}}\n\n'
+      'event: message\ndata: {"type":"tool_call","id":"call_123","name":"update_template","args":{"html":"<h1>New</h1>","css":"h1 { color: red; }"}}\n\n'
     )
   })
 

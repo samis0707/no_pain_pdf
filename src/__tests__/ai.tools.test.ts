@@ -1,5 +1,31 @@
 import Handlebars from 'handlebars'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+
+const {
+  mockPrintItemFindUnique,
+  mockPrintItemUpdate,
+  mockDataSetFindFirst,
+  mockDataSetCreate,
+} = vi.hoisted(() => ({
+  mockPrintItemFindUnique: vi.fn(),
+  mockPrintItemUpdate: vi.fn(),
+  mockDataSetFindFirst: vi.fn(),
+  mockDataSetCreate: vi.fn(),
+}))
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    printItem: {
+      findUnique: (...args: unknown[]) => mockPrintItemFindUnique(...args),
+      update: (...args: unknown[]) => mockPrintItemUpdate(...args),
+    },
+    dataSet: {
+      findFirst: (...args: unknown[]) => mockDataSetFindFirst(...args),
+      create: (...args: unknown[]) => mockDataSetCreate(...args),
+    },
+  },
+}))
+
 import {
   getTemplate,
   updateTemplate,
@@ -13,7 +39,59 @@ import {
   getHelpers,
 } from '@/lib/ai/tools'
 
-const TEST_ITEM_ID = 'test-item-123'
+const TEST_ITEM_ID = '42'
+
+let currentVersion = 5
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  currentVersion = 5
+
+  mockPrintItemFindUnique.mockImplementation(
+    ({ where }: { where: { id: number } }) => {
+      if (where.id === 42) {
+        return Promise.resolve({
+          id: 42,
+          name: 'Test Item',
+          html: '<div>hello</div>',
+          css: 'body { color: red; }',
+          version: currentVersion,
+          miscText: JSON.stringify({ customHelpers: [] }),
+        })
+      }
+      return Promise.resolve(null)
+    },
+  )
+
+  mockPrintItemUpdate.mockImplementation(
+    ({
+      where,
+      data,
+    }: {
+      where: { id: number }
+      data: Record<string, unknown>
+    }) => {
+      currentVersion = data.version as number
+      return Promise.resolve({
+        id: where.id,
+        name: 'Test Item',
+        html: (data.html as string) ?? '<div>hello</div>',
+        css: (data.css as string) ?? '',
+        version: currentVersion,
+      })
+    },
+  )
+
+  mockDataSetFindFirst.mockResolvedValue(null)
+  mockDataSetCreate.mockResolvedValue({
+    id: 1,
+    printItemId: 42,
+    name: 'test',
+    columns: '[]',
+    rows: '[]',
+    rowCount: 0,
+  })
+})
 
 describe('getTemplate', () => {
   it('returns html, css, name properties', async () => {
@@ -40,7 +118,11 @@ describe('updateTemplate', () => {
   })
 
   it('saves css and returns updated version', async () => {
-    const result = await updateTemplate(TEST_ITEM_ID, undefined, 'h1 { color: red; }')
+    const result = await updateTemplate(
+      TEST_ITEM_ID,
+      undefined,
+      'h1 { color: red; }',
+    )
     expect(result.css).toBe('h1 { color: red; }')
     expect(result).toHaveProperty('version')
     expect(typeof result.version).toBe('number')
@@ -54,7 +136,7 @@ describe('updateTemplate', () => {
 
   it('handles missing item', async () => {
     await expect(
-      updateTemplate('non-existent-id', '<h1>test</h1>')
+      updateTemplate('non-existent-id', '<h1>test</h1>'),
     ).rejects.toThrow()
   })
 })
@@ -68,7 +150,7 @@ describe('getDataInfo', () => {
   })
 
   it('handles item with no dataset', async () => {
-    const result = await getDataInfo('item-without-dataset')
+    const result = await getDataInfo('999')
     expect(result.rowCount).toBe(0)
     expect(result.columns).toEqual([])
     expect(result.sampleRows).toEqual([])
@@ -127,7 +209,7 @@ describe('registerHelper', () => {
       TEST_ITEM_ID,
       'greet',
       ['name'],
-      'return `Hello, ${name}!`'
+      'return `Hello, ${name}!`',
     )
     expect(result.success).toBe(true)
     expect(result.name).toBe('greet')
@@ -138,7 +220,7 @@ describe('registerHelper', () => {
       TEST_ITEM_ID,
       'double',
       ['n'],
-      'return n * 2'
+      'return n * 2',
     )
     expect(result.success).toBe(true)
 
@@ -168,7 +250,7 @@ describe('getData', () => {
   })
 
   it('handles item with no dataset (returns empty columns and rows)', async () => {
-    const result = await getData('item-without-dataset')
+    const result = await getData('999')
     expect(result.columns).toEqual([])
     expect(result.rows).toEqual([])
   })
@@ -188,7 +270,7 @@ describe('updateData', () => {
 
   it('rejects non-array input (throws)', async () => {
     await expect(
-      updateData(TEST_ITEM_ID, 'not-an-array' as unknown as Record<string, unknown>[])
+      updateData(TEST_ITEM_ID, 'not-an-array' as unknown as Record<string, unknown>[]),
     ).rejects.toThrow()
   })
 
@@ -196,7 +278,7 @@ describe('updateData', () => {
     await expect(updateData(TEST_ITEM_ID, [])).rejects.toThrow()
   })
 
-  it('persists data so getData returns the updated rows', async () => {
+  it('persists data via prisma.dataSet.create', async () => {
     const freshRows = [
       { x: 1, y: 2 },
       { x: 3, y: 4 },
@@ -204,9 +286,14 @@ describe('updateData', () => {
     const updateResult = await updateData(TEST_ITEM_ID, freshRows)
     expect(updateResult.success).toBe(true)
     expect(updateResult.rowCount).toBe(2)
-
-    const data = await getData(TEST_ITEM_ID)
-    expect(data.rows).toEqual(freshRows)
+    expect(mockDataSetCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        printItemId: 42,
+        columns: JSON.stringify(['x', 'y']),
+        rows: JSON.stringify(freshRows),
+        rowCount: 2,
+      }),
+    })
   })
 })
 
