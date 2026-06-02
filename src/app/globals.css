@@ -24,3 +24,69 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Markdown content inside chat message bubbles */
+.chat-message-markdown p {
+  margin: 0.25rem 0;
+}
+
+.chat-message-markdown p:first-child {
+  margin-top: 0;
+}
+
+.chat-message-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-message-markdown ul,
+.chat-message-markdown ol {
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
+}
+
+.chat-message-markdown li {
+  margin: 0.125rem 0;
+}
+
+.chat-message-markdown h1,
+.chat-message-markdown h2,
+.chat-message-markdown h3,
+.chat-message-markdown h4 {
+  margin: 0.5rem 0 0.25rem;
+  font-weight: 600;
+}
+
+.chat-message-markdown h1 { font-size: 1.125rem; }
+.chat-message-markdown h2 { font-size: 1rem; }
+.chat-message-markdown h3 { font-size: 0.9375rem; }
+.chat-message-markdown h4 { font-size: 0.875rem; }
+
+.chat-message-markdown blockquote {
+  border-left: 3px solid #d4d4d8;
+  margin: 0.25rem 0;
+  padding-left: 0.75rem;
+  color: #71717a;
+}
+
+.chat-message-markdown table {
+  border-collapse: collapse;
+  margin: 0.25rem 0;
+  font-size: 0.8125rem;
+}
+
+.chat-message-markdown th,
+.chat-message-markdown td {
+  border: 1px solid #d4d4d8;
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+}
+
+.chat-message-markdown th {
+  background: #f4f4f5;
+  font-weight: 600;
+}
+
+.chat-message-markdown hr {
+  margin: 0.5rem 0;
+  border-color: #e4e4e7;
+}

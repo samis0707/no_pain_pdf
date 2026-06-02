@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import type { ChatMessage } from './types'
+import MarkdownRenderer from './MarkdownRenderer'
 
 interface MessageListProps {
   messages: ChatMessage[]
@@ -45,7 +46,7 @@ export default function MessageList({ messages, isStreaming, onRollback }: Messa
           data-testid={`message-${msg.role}`}
           className={`max-w-[80%] rounded-lg px-4 py-2 text-sm leading-relaxed ${roleStyle(msg.role)}`}
         >
-          {msg.content}
+          <MarkdownRenderer content={msg.content} />
           {msg.role === 'tool' && msg.version != null && (
             <span
               data-testid="version-badge"

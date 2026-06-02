@@ -65,6 +65,68 @@ describe('MessageList', () => {
   })
 })
 
+describe('MessageList markdown rendering', () => {
+  it('renders bold text from markdown in assistant messages', () => {
+    const msg: ChatMessage = { role: 'assistant', content: 'Hello **world**!', id: 'm1' }
+    render(<MessageList messages={[msg]} isStreaming={false} />)
+    const el = screen.getByTestId('message-assistant')
+    expect(el.textContent).not.toContain('**')
+    expect(el.textContent).toContain('world')
+    expect(el.querySelector('strong')).toBeInTheDocument()
+  })
+
+  it('renders inline code from markdown', () => {
+    const msg: ChatMessage = { role: 'assistant', content: 'Use the `formatDate` helper.', id: 'm2' }
+    render(<MessageList messages={[msg]} isStreaming={false} />)
+    expect(screen.getByText('formatDate')).toBeInTheDocument()
+    expect(screen.getByTestId('message-assistant').querySelector('code')).toBeInTheDocument()
+  })
+
+  it('renders code blocks from markdown', () => {
+    const msg: ChatMessage = {
+      role: 'assistant',
+      content: 'Here is a snippet:\n```html\n<div>Hello</div>\n```',
+      id: 'm3',
+    }
+    render(<MessageList messages={[msg]} isStreaming={false} />)
+    const el = screen.getByTestId('message-assistant')
+    expect(el.textContent).toContain('<div>Hello</div>')
+    expect(el.querySelector('pre')).toBeInTheDocument()
+    expect(el.querySelector('code')).toBeInTheDocument()
+  })
+
+  it('renders unordered lists from markdown', () => {
+    const msg: ChatMessage = {
+      role: 'assistant',
+      content: '- First item\n- Second item\n- Third item',
+      id: 'm4',
+    }
+    render(<MessageList messages={[msg]} isStreaming={false} />)
+    expect(screen.getByText('First item')).toBeInTheDocument()
+    expect(screen.getByText('Second item')).toBeInTheDocument()
+    expect(screen.getByText('Third item')).toBeInTheDocument()
+    expect(screen.getByTestId('message-assistant').querySelector('ul')).toBeInTheDocument()
+  })
+
+  it('does not break existing user message rendering', () => {
+    const msg: ChatMessage = { role: 'user', content: 'Plain text message', id: 'm5' }
+    render(<MessageList messages={[msg]} isStreaming={false} />)
+    expect(screen.getByTestId('message-user')).toHaveTextContent('Plain text message')
+  })
+
+  it('does not break tool message badges and rollback', () => {
+    const toolMsg: ChatMessage = {
+      role: 'tool',
+      content: 'Applied change',
+      id: 'm6',
+      version: 3,
+    }
+    render(<MessageList messages={[toolMsg]} isStreaming={false} />)
+    expect(screen.getByTestId('version-badge')).toHaveTextContent('v3')
+    expect(screen.getByTestId('rollback-link')).toBeInTheDocument()
+  })
+})
+
 describe('MessageInput', () => {
   it('calls onSend with the message text when send button is clicked', async () => {
     const onSend = vi.fn()
