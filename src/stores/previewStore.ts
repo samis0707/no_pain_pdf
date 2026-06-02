@@ -5,7 +5,7 @@ interface PreviewState {
   compiledHtml: string
   isCompiling: boolean
   compileError: string | null
-  compile: (html: string, css: string, data: Record<string, string>, miscText?: string) => void
+  compile: (html: string, css: string, data: Record<string, unknown>, miscText?: string) => void
 }
 
 export const usePreviewStore = create<PreviewState>()((set) => ({

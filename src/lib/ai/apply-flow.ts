@@ -1,5 +1,6 @@
 import { useTemplateStore } from '@/stores/templateStore'
 import { usePreviewStore } from '@/stores/previewStore'
+import { useDataStore } from '@/stores/dataStore'
 import { loadHelpers } from '@/lib/helper-loader'
 
 interface ApplyChanges {
@@ -31,5 +32,11 @@ export function applyTemplateChanges(changes: ApplyChanges): void {
   }
 
   const updated = useTemplateStore.getState()
-  usePreviewStore.getState().compile(updated.html, updated.css, {}, updated.miscText)
+  const dataRows = useDataStore.getState().rows
+
+  const data: Record<string, unknown> = dataRows.length > 0
+    ? { ...dataRows[0], rows: dataRows }
+    : {}
+
+  usePreviewStore.getState().compile(updated.html, updated.css, data, updated.miscText)
 }

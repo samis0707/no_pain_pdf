@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { usePreviewStore } from '@/stores/previewStore'
 import { useTemplateStore } from '@/stores/templateStore'
 import { useDataStore } from '@/stores/dataStore'
@@ -11,7 +11,9 @@ export default function PreviewPanel() {
   const { compiledHtml, isCompiling, compileError, compile } = usePreviewStore()
 
   useEffect(() => {
-    const sampleData = rows.length > 0 ? rows[0] : {} as Record<string, string>
+    const sampleData: Record<string, unknown> = rows.length > 0
+      ? { ...rows[0], rows }
+      : {}
     compile(html, css, sampleData, miscText)
   }, [html, css, rows, miscText, compile])
 
