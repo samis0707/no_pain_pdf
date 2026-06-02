@@ -48,6 +48,8 @@ model PrintItem {
   project        PrintProject   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   templateId     Int?
   template       PrintTemplate? @relation(fields: [templateId], references: [id])
+  pageFormatId   Int?
+  pageFormat     PageFormat?    @relation(fields: [pageFormatId], references: [id])
   name           String
   html           String
   css            String
@@ -61,6 +63,18 @@ model PrintItem {
   assets         Asset[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+}
+
+model PageFormat {
+  id        Int          @id @default(autoincrement())
+  name      String
+  widthMm   Float
+  heightMm  Float
+  category  String       @default("CUSTOM")
+  isPreset  Boolean      @default(false)
+  items     PrintItem[]
+
+  @@unique([name, widthMm, heightMm])
 }
 
 model DataSet {
