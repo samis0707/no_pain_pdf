@@ -34,6 +34,37 @@ export function registerHelpers(): void {
     return options.inverse(this)
   })
 
+  Handlebars.registerHelper('ifContains', function (this: unknown, str: unknown, substring: unknown, options: Handlebars.HelperOptions) {
+    if (String(str ?? '').includes(String(substring ?? ''))) return options.fn(this)
+    return options.inverse(this)
+  })
+
+  Handlebars.registerHelper('formatTime', (dateStr: string, format: string) => {
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return dateStr
+
+    const hours = String(date.getUTCHours()).padStart(2, '0')
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+    const seconds = String(date.getUTCSeconds()).padStart(2, '0')
+
+    let result = format
+    result = result.replace('HH', hours)
+    result = result.replace('mm', minutes)
+    result = result.replace('ss', seconds)
+    return result
+  })
+
+  Handlebars.registerHelper('sortByPrimary', <T extends Record<string, unknown>>(arr: T[], field: string): T[] => {
+    if (!Array.isArray(arr)) return []
+    return [...arr].sort((a, b) => {
+      const aVal = String(a?.[field] ?? '').toLowerCase()
+      const bVal = String(b?.[field] ?? '').toLowerCase()
+      if (aVal < bVal) return -1
+      if (aVal > bVal) return 1
+      return 0
+    })
+  })
+
   registerDataHelpers()
 }
 
