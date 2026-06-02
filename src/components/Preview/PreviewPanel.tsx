@@ -1,14 +1,24 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePreviewStore } from '@/stores/previewStore'
 import { useTemplateStore } from '@/stores/templateStore'
 import { useDataStore } from '@/stores/dataStore'
+import { calculateScale } from '@/utils/previewScale'
+import { getPageFormatDimensions } from '@/utils/pageFormat'
+
+const MM_TO_PX = 3.7795
 
 export default function PreviewPanel() {
-  const { html, css, miscText } = useTemplateStore()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+  const { html, css, miscText, pageFormat } = useTemplateStore()
   const { rows } = useDataStore()
   const { compiledHtml, isCompiling, compileError, compile } = usePreviewStore()
+
+  const fmt = pageFormat
+    ? { widthMm: pageFormat.widthMm, heightMm: pageFormat.heightMm }
+    : getPageFormatDimensions('A4', 'portrait')
 
   useEffect(() => {
     const sampleData: Record<string, unknown> = rows.length > 0
@@ -16,6 +26,26 @@ export default function PreviewPanel() {
       : {}
     compile(html, css, sampleData, miscText)
   }, [html, css, rows, miscText, compile])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const resizeObserver = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect
+      const s = calculateScale(width, height, fmt.widthMm, fmt.heightMm)
+      setScale(s)
+    })
+    resizeObserver.observe(container)
+    return () => resizeObserver.disconnect()
+  }, [fmt.widthMm, fmt.heightMm])
+
+  const pageCss = `@page { size: ${fmt.widthMm}mm ${fmt.heightMm}mm; margin: 0; }`
+  const displayHtml = compiledHtml
+    ? compiledHtml.replace('<style>', `<style>${pageCss}\n`)
+    : ''
+
+  const pageWidthPx = fmt.widthMm * MM_TO_PX
+  const pageHeightPx = fmt.heightMm * MM_TO_PX
 
   if (!html) {
     return (
@@ -37,13 +67,20 @@ export default function PreviewPanel() {
           <p className="text-xs text-blue-600">Compiling...</p>
         </div>
       )}
-      <div className="flex-1 overflow-auto bg-zinc-100 flex justify-center p-4">
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-hidden bg-zinc-100 flex items-center justify-center"
+      >
         <div
-          className="bg-white shadow-lg"
-          style={{ width: 794, aspectRatio: '210 / 297' }}
+          className="bg-white shadow-lg origin-top-left"
+          style={{
+            width: pageWidthPx,
+            height: pageHeightPx,
+            transform: `scale(${scale})`,
+          }}
         >
           <iframe
-            srcDoc={compiledHtml}
+            srcDoc={displayHtml}
             title="Preview"
             className="w-full h-full border-0"
           />
