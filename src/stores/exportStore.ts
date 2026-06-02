@@ -1,4 +1,10 @@
 import { create } from 'zustand'
+import Handlebars from 'handlebars'
+import { useTemplateStore } from '@/stores/templateStore'
+import { useDataStore } from '@/stores/dataStore'
+import { loadHelpers } from '@/lib/helper-loader'
+import { getPageFormatDimensions } from '@/utils/pageFormat'
+import '@/lib/handlebars-helpers'
 
 interface ExportState {
   pageSize: string
@@ -11,6 +17,7 @@ interface ExportState {
   setOrientation: (orientation: string) => void
   setMargins: (margins: string) => void
   exportPdf: (html: string, css: string) => Promise<void>
+  getEffectivePageFormat: () => { widthMm: number; heightMm: number }
 }
 
 export const useExportStore = create<ExportState>()((set, get) => ({
@@ -26,15 +33,30 @@ export const useExportStore = create<ExportState>()((set, get) => ({
 
   setMargins: (margins) => set({ margins }),
 
+  getEffectivePageFormat: () => {
+    const templatePageFormat = useTemplateStore.getState().pageFormat
+    if (templatePageFormat) {
+      return { widthMm: templatePageFormat.widthMm, heightMm: templatePageFormat.heightMm }
+    }
+    const { pageSize, orientation } = get()
+    return getPageFormatDimensions(pageSize, orientation)
+  },
+
   exportPdf: async (html, css) => {
     set({ isExporting: true, error: null })
     try {
       const { pageSize, orientation, margins } = get()
+
+      const dataRows = useDataStore.getState().rows
+      const data = dataRows.length > 0 ? { ...dataRows[0], rows: dataRows } : {}
+      const template = Handlebars.compile(html)
+      const compiledHtml = template(data)
+
       const res = await fetch('/api/pdf/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          html,
+          html: compiledHtml,
           css,
           options: { format: pageSize, orientation, margin: margins },
         }),
@@ -60,3 +82,12 @@ export const useExportStore = create<ExportState>()((set, get) => ({
     }
   },
 }))
+
+useTemplateStore.subscribe((state) => {
+  if (state.pageFormat) {
+    useExportStore.setState({
+      pageSize: state.pageFormat.name,
+      orientation: state.pageFormat.widthMm > state.pageFormat.heightMm ? 'landscape' : 'portrait',
+    })
+  }
+})
