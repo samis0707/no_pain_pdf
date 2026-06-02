@@ -39,7 +39,7 @@ export default function MessageList({ messages, isStreaming, onRollback }: Messa
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4 overflow-y-auto">
+    <div className="flex flex-col gap-3 p-4 h-full overflow-y-auto">
       {messages.map((msg, i) => (
         <div
           key={msg.id ?? i}
