@@ -9,7 +9,7 @@ export async function GET(
 
   const item = await prisma.printItem.findUnique({
     where: { id: parseInt(id) },
-    include: { datasets: true },
+    include: { datasets: true, pageFormat: true },
   })
 
   if (!item) {
@@ -52,13 +52,34 @@ export async function PUT(
     })
   }
 
+  const data: Record<string, unknown> = {}
+  if (body.html !== undefined) data.html = body.html
+  if (body.css !== undefined) data.css = body.css
+  if (body.name !== undefined) data.name = body.name
+  if (body.miscText !== undefined) data.miscText = body.miscText
+  if (body.exportSettings !== undefined) {
+    data.exportSettings = JSON.stringify(body.exportSettings)
+  }
+  if (body.pageFormatId !== undefined) {
+    if (body.pageFormatId === null) {
+      data.pageFormatId = null
+    } else {
+      const format = await prisma.pageFormat.findUnique({
+        where: { id: body.pageFormatId as number },
+      })
+      if (!format) {
+        return new Response(JSON.stringify({ error: 'PageFormat not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      data.pageFormatId = body.pageFormatId
+    }
+  }
+
   const item = await prisma.printItem.update({
     where: { id: parseInt(id) },
-    data: {
-      ...(body.html !== undefined && { html: body.html as string }),
-      ...(body.css !== undefined && { css: body.css as string }),
-      ...(body.name !== undefined && { name: body.name as string }),
-    },
+    data,
   })
 
   return new Response(JSON.stringify(item), {
