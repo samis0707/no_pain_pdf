@@ -35,12 +35,17 @@ export default function PreviewPanel() {
           <p className="text-xs text-blue-600">Compiling...</p>
         </div>
       )}
-      <div className="flex-1 border rounded-lg overflow-hidden bg-white">
-        <iframe
-          srcDoc={compiledHtml}
-          title="Preview"
-          className="w-full h-full border-0"
-        />
+      <div className="flex-1 overflow-auto bg-zinc-100 flex justify-center p-4">
+        <div
+          className="bg-white shadow-lg"
+          style={{ width: 794, aspectRatio: '210 / 297' }}
+        >
+          <iframe
+            srcDoc={compiledHtml}
+            title="Preview"
+            className="w-full h-full border-0"
+          />
+        </div>
       </div>
     </div>
   )
