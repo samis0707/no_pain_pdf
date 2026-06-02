@@ -53,6 +53,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
   sendMessage: async (content) => {
     const { itemId } = get()
+    console.log('📤 [Chat] sendMessage: starting', { content, itemId })
     if (!itemId) {
       set({ error: 'No item selected' })
       return
@@ -64,12 +65,15 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     }))
 
     try {
+      const requestBody = JSON.stringify({ itemId, message: { role: 'user', content } })
+      console.log('📤 [Chat] sendMessage: fetching /api/ai/chat', { body: requestBody })
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId, message: { role: 'user', content } }),
+        body: requestBody,
       })
 
+      console.log('📤 [Chat] sendMessage: response status', { status: res.status })
       if (!res.ok) throw new Error('Chat request failed')
       if (!res.body) throw new Error('No response body')
 
@@ -78,6 +82,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       let hasAssistantText = false
 
       for await (const event of reader) {
+        console.log('📤 [Chat] SSE event received:', event.type, event.type === 'tool_call' ? { name: event.data.name } : '')
         if (event.type === 'text') {
           textBuffer += event.data
           set((state) => {
@@ -131,6 +136,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         }
       }
     } catch (e) {
+      console.error('❌ [Chat] sendMessage: error', e)
       set({ error: e instanceof Error ? e.message : 'Chat failed' })
     } finally {
       set({ isStreaming: false })

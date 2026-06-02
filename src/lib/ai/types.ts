@@ -12,6 +12,8 @@ export interface ToolResult {
 export interface ChatMessage {
   role: string
   content: string
+  id?: string
+  version?: number
   toolCalls?: ToolCall[]
   toolCallId?: string
 }

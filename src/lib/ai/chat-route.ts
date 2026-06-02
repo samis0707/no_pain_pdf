@@ -13,7 +13,9 @@ export async function handleChatRequest(
   return new ReadableStream({
     async start(controller) {
       try {
+        console.log('🤖 [ChatRoute] Starting chat request', { itemId, messageCount: messages.length })
         const provider = createProvider()
+        console.log('🤖 [ChatRoute] Provider created', { type: provider.constructor.name })
 
         let currentMessages = [...messages]
         let response = await provider.chat(currentMessages, TOOL_DEFINITIONS)
@@ -25,6 +27,7 @@ export async function handleChatRequest(
           iterations++
 
           for (const tc of response.toolCalls) {
+            console.log('🤖 [ChatRoute] Tool call:', { name: tc.name, args: tc.args })
             const event = formatToolCallEvent(tc.name, tc.args, tc.id)
             controller.enqueue(encoder.encode(event))
           }
@@ -32,6 +35,9 @@ export async function handleChatRequest(
           const toolResults = await Promise.all(
             response.toolCalls.map((tc) => executeToolCall(itemId, tc)),
           )
+          for (const tr of toolResults) {
+            console.log('🤖 [ChatRoute] Tool result:', { toolCallId: tr.toolCallId, result: tr.result })
+          }
 
           currentMessages.push(response)
           for (const tr of toolResults) {
@@ -45,7 +51,9 @@ export async function handleChatRequest(
           response = await provider.chat(currentMessages, TOOL_DEFINITIONS)
         }
 
-        const textEvent = formatTextEvent(response.content || '')
+        const textContent = response.content || ''
+        console.log('🤖 [ChatRoute] Streaming response:', { content: textContent })
+        const textEvent = formatTextEvent(textContent)
         controller.enqueue(encoder.encode(textEvent))
         currentMessages.push(response)
 
@@ -55,6 +63,10 @@ export async function handleChatRequest(
         controller.enqueue(encoder.encode(doneEvent))
         controller.enqueue(encoder.encode('data: [DONE]\n\n'))
       } catch (error) {
+        console.error('❌ [ChatRoute] Error:', error)
+        if (error instanceof Error && error.stack) {
+          console.error('❌ [ChatRoute] Stack:', error.stack)
+        }
         const errMsg = error instanceof Error ? error.message : 'Unknown error'
         const event = formatErrorEvent(errMsg)
         controller.enqueue(encoder.encode(event))

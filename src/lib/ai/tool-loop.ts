@@ -174,6 +174,8 @@ const TOOL_DEFINITIONS = [
   },
 ]
 
+export { TOOL_DEFINITIONS }
+
 export async function executeToolCall(itemId: string, toolCall: ToolCall): Promise<ToolResult> {
   const handler = toolHandlers[toolCall.name]
   if (!handler) {

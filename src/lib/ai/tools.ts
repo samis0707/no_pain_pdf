@@ -1,41 +1,19 @@
 import Handlebars from 'handlebars'
+import { prisma } from '@/lib/prisma'
 
-interface ItemStore {
-  html: string
-  css: string
-  name: string
-  version: number
-  columns: string[]
-  rows: Record<string, unknown>[]
-  customHelpers: Array<{ name: string; params: string[]; body: string }>
+function parsePrintItemId(itemId: string): number {
+  const id = parseInt(itemId)
+  if (isNaN(id)) throw new Error(`Invalid item ID: ${itemId}`)
+  return id
 }
 
-function createDefaultItem(): ItemStore {
-  return {
-    html: '',
-    css: '',
-    name: 'Untitled',
-    version: 0,
-    columns: [],
-    rows: [],
-    customHelpers: [],
-  }
-}
-
-const store = new Map<string, ItemStore>()
-
-store.set('test-item-123', createDefaultItem())
-store.set('item-without-dataset', createDefaultItem())
-
-function getItem(itemId: string): ItemStore {
-  const item = store.get(itemId)
+export async function getTemplate(
+  itemId: string,
+): Promise<{ html: string; css: string; name: string }> {
+  const id = parsePrintItemId(itemId)
+  const item = await prisma.printItem.findUnique({ where: { id } })
   if (!item) throw new Error(`Item not found: ${itemId}`)
-  return item
-}
-
-export async function getTemplate(itemId: string): Promise<{ html: string; css: string; name: string }> {
-  const item = getItem(itemId)
-  return { html: item.html, css: item.css, name: item.name }
+  return { html: item.html ?? '', css: item.css ?? '', name: item.name }
 }
 
 export async function updateTemplate(
@@ -43,30 +21,40 @@ export async function updateTemplate(
   html?: string,
   css?: string,
 ): Promise<{ html: string; css: string; version: number }> {
-  const item = getItem(itemId)
-  if (html !== undefined) item.html = html
-  if (css !== undefined) item.css = css
-  item.version++
-  return { html: item.html, css: item.css, version: item.version }
+  const id = parsePrintItemId(itemId)
+  const item = await prisma.printItem.findUnique({ where: { id } })
+  if (!item) throw new Error(`Item not found: ${itemId}`)
+
+  const data: { html?: string; css?: string; version: number } = { version: item.version + 1 }
+  if (html !== undefined) data.html = html
+  if (css !== undefined) data.css = css
+
+  const updated = await prisma.printItem.update({
+    where: { id },
+    data,
+  })
+  return { html: updated.html ?? '', css: updated.css ?? '', version: updated.version }
 }
 
 export async function getDataInfo(
   itemId: string,
 ): Promise<{ columns: string[]; rowCount: number; sampleRows: Record<string, unknown>[] }> {
-  const item = getItem(itemId)
-  return {
-    columns: item.columns,
-    rowCount: item.rows.length,
-    sampleRows: item.rows.slice(0, 5),
-  }
+  const id = parsePrintItemId(itemId)
+  const dataset = await prisma.dataSet.findFirst({
+    where: { printItemId: id },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (!dataset) return { columns: [], rowCount: 0, sampleRows: [] }
+
+  const columns: string[] = (() => { try { return JSON.parse(dataset.columns) } catch { return [] } })()
+  const rows: Record<string, unknown>[] = (() => { try { return JSON.parse(dataset.rows) } catch { return [] } })()
+  return { columns, rowCount: dataset.rowCount, sampleRows: rows.slice(0, 5) }
 }
 
 export async function analyzeData(
   itemId: string,
 ): Promise<{ duplicates: number; nulls: Record<string, number>; suggestions: string[] }> {
-  const item = getItem(itemId)
-  const rows = item.rows
-  const columns = item.columns
+  const { columns, rows } = await getData(itemId)
 
   const nulls: Record<string, number> = {}
   for (const col of columns) {
@@ -82,7 +70,6 @@ export async function analyzeData(
         nulls[col] = (nulls[col] || 0) + 1
       }
     }
-
     const key = JSON.stringify(row)
     if (seen.has(key)) {
       duplicates++
@@ -108,7 +95,9 @@ export async function renderPreview(_itemId: string): Promise<{ screenshot: stri
   return { screenshot: 'ZGVmYXVsdC1zY3JlZW5zaG90' }
 }
 
-export async function getAssets(_itemId: string): Promise<{ assets: Array<{ filename: string; url: string }> }> {
+export async function getAssets(
+  _itemId: string,
+): Promise<{ assets: Array<{ filename: string; url: string }> }> {
   return { assets: [] }
 }
 
@@ -118,16 +107,40 @@ export async function registerHelper(
   params: string[],
   body: string,
 ): Promise<{ success: boolean; name: string }> {
-  const item = getItem(itemId)
+  const id = parsePrintItemId(itemId)
+  const item = await prisma.printItem.findUnique({ where: { id } })
+  if (!item) throw new Error(`Item not found: ${itemId}`)
+
   const fn = new Function(...params, body) as Handlebars.HelperDelegate
   Handlebars.registerHelper(name, fn)
-  item.customHelpers.push({ name, params, body })
+
+  const miscText = (() => { try { return JSON.parse(item.miscText ?? '{}') } catch { return {} } })() as Record<string, unknown>
+  const customHelpers: Array<{ name: string; params: string[]; body: string }> = Array.isArray(miscText.customHelpers)
+    ? miscText.customHelpers as Array<{ name: string; params: string[]; body: string }>
+    : []
+  customHelpers.push({ name, params, body })
+
+  await prisma.printItem.update({
+    where: { id },
+    data: { miscText: JSON.stringify({ ...miscText, customHelpers }) },
+  })
+
   return { success: true, name }
 }
 
-export async function getData(itemId: string): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> {
-  const item = getItem(itemId)
-  return { columns: item.columns, rows: item.rows }
+export async function getData(
+  itemId: string,
+): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> {
+  const id = parsePrintItemId(itemId)
+  const dataset = await prisma.dataSet.findFirst({
+    where: { printItemId: id },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (!dataset) return { columns: [], rows: [] }
+
+  const columns: string[] = (() => { try { return JSON.parse(dataset.columns) } catch { return [] } })()
+  const rows: Record<string, unknown>[] = (() => { try { return JSON.parse(dataset.rows) } catch { return [] } })()
+  return { columns, rows }
 }
 
 export async function updateData(
@@ -137,12 +150,19 @@ export async function updateData(
   if (!Array.isArray(rows)) throw new Error('rows must be an array')
   if (rows.length === 0) throw new Error('rows must not be empty')
 
-  const item = getItem(itemId)
-  item.rows = rows
+  const id = parsePrintItemId(itemId)
+  const columns = Object.keys(rows[0])
 
-  if (rows.length > 0) {
-    item.columns = Object.keys(rows[0])
-  }
+  const name = `ai-updated-${Date.now()}`
+  await prisma.dataSet.create({
+    data: {
+      printItemId: id,
+      name,
+      columns: JSON.stringify(columns),
+      rows: JSON.stringify(rows),
+      rowCount: rows.length,
+    },
+  })
 
   return { success: true, rowCount: rows.length }
 }
@@ -178,6 +198,9 @@ const BUILT_IN_HELPERS: HelperInfo[] = [
   { name: 'and', params: '...conditions', description: 'Return true if all conditions are truthy' },
   { name: 'or', params: '...conditions', description: 'Return true if any condition is truthy' },
   { name: 'not', params: 'a', description: 'Return the logical negation of a' },
+  { name: 'sortByPrimary', params: 'arr, field', description: 'Sort an array by a field (ascending)' },
+  { name: 'formatTime', params: 'dateStr, format', description: 'Format a date string to time (e.g. HH:mm)' },
+  { name: 'ifContains', params: 'str, substring', description: 'Conditionally render block if str contains substring' },
 ]
 
 export async function getHelpers(
@@ -189,9 +212,15 @@ export async function getHelpers(
   const custom: Array<{ name: string; params: string[]; body: string }> = []
 
   if (itemId) {
-    const item = store.get(itemId)
-    if (item) {
-      custom.push(...item.customHelpers)
+    const id = parsePrintItemId(itemId)
+    const item = await prisma.printItem.findUnique({ where: { id } })
+    if (item?.miscText) {
+      try {
+        const parsed = JSON.parse(item.miscText) as Record<string, unknown>
+        if (Array.isArray(parsed.customHelpers)) {
+          custom.push(...parsed.customHelpers as Array<{ name: string; params: string[]; body: string }>)
+        }
+      } catch { /* ignore parse errors */ }
     }
   }
 

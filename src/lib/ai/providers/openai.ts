@@ -33,11 +33,18 @@ export class OpenAIProvider extends AiProvider {
         return { role: 'assistant', content: `Error: API responded with status ${response.status}` }
       }
 
-      const data = await response.json() as { choices: Array<{ message: { role: string; content: string } }> }
+      const data = await response.json() as { choices: Array<{ message: { role: string; content: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }> } }> }
       const choice = data.choices?.[0]
+      const message = choice?.message
+      const toolCalls = message?.tool_calls?.map((tc) => ({
+        id: tc.id,
+        name: tc.function.name,
+        args: JSON.parse(tc.function.arguments || '{}') as Record<string, unknown>,
+      }))
       return {
         role: 'assistant',
-        content: choice?.message?.content || '',
+        content: message?.content || '',
+        toolCalls,
       }
     } catch (error) {
       return {
