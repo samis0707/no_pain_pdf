@@ -47,6 +47,16 @@ export default function MessageList({ messages, isStreaming, onRollback }: Messa
           className={`max-w-[80%] rounded-lg px-4 py-2 text-sm leading-relaxed ${roleStyle(msg.role)}`}
         >
           <MarkdownRenderer content={msg.content} />
+          {msg.toolCalls && msg.toolCalls.length > 0 && (
+            <div className="space-y-1 mt-1">
+              {msg.toolCalls.map((tc) => (
+                <div key={tc.id} className="flex items-center gap-1.5 text-xs text-zinc-500">
+                  <span className="inline-block w-3 h-3 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
+                  <span>{tc.label || `Running ${tc.name}...`}</span>
+                </div>
+              ))}
+            </div>
+          )}
           {msg.role === 'tool' && msg.version != null && (
             <span
               data-testid="version-badge"

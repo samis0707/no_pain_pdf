@@ -7,6 +7,7 @@ import PreviewPanel from '@/components/Preview/PreviewPanel'
 import ErrorBoundary from '@/components/Preview/ErrorBoundary'
 import ExportPanel from '@/components/ExportPanel/ExportPanel'
 import ChatSidebar from '@/components/Chat/ChatSidebar'
+import DebugBar from '@/components/DebugBar/DebugBar'
 import { useTemplateStore } from '@/stores/templateStore'
 import { useChatStore } from '@/stores/chatStore'
 
@@ -57,6 +58,8 @@ export default function EditorPage() {
         </nav>
         <div className="w-24" />
       </header>
+
+      <DebugBar />
 
       <main className="flex-1 overflow-auto">
         {activeTab === 'upload' && <DataImportPanel itemId={1} />}
