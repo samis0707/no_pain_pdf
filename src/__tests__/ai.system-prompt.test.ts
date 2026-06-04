@@ -14,6 +14,8 @@ describe('buildSystemPrompt', () => {
     ],
     rowCount: 47,
     assets: [],
+    pageFormat: null,
+    availablePageFormats: [],
   }
 
   it('includes all built-in Handlebars helpers from DATA_HELPER_NAMES', () => {

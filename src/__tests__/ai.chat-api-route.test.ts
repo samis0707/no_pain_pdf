@@ -30,6 +30,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     printItem: { findUnique: vi.fn().mockResolvedValue(null) },
     dataSet: { findMany: vi.fn().mockResolvedValue([]) },
+    pageFormat: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }))
 

@@ -170,7 +170,7 @@ describe('chatStore', () => {
     expect(state.messages[2]).toEqual({
       role: 'assistant',
       content: '',
-      toolCalls: [{ id: 'call_1', name: 'get_template', args: { itemId: 'item-1' } }],
+      toolCalls: [{ id: 'call_1', name: 'get_template', args: { itemId: 'item-1' }, label: 'Prüfe Design...' }],
     })
   })
 
@@ -371,7 +371,18 @@ describe('chatStore', () => {
         },
         { type: 'done' },
       ])
-      mockFetch.mockResolvedValue(new Response(stream, { status: 200 }))
+      const sseResponse = new Response(stream, { status: 200 })
+      mockFetch.mockImplementation((url: string | URL | Request) => {
+        if (url.toString().includes('/api/ai/chat')) {
+          return Promise.resolve(sseResponse)
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify({ version: 2, pageFormat: null }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        )
+      })
 
       await useChatStore.getState().sendMessage('Save')
 

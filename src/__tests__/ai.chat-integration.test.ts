@@ -347,7 +347,7 @@ describe('ChatStore sendMessage with tool calls', () => {
       role: 'assistant',
       content: '',
       toolCalls: [
-        { id: 'call_1', name: 'get_template', args: { itemId: '42' } },
+        { id: 'call_1', name: 'get_template', args: { itemId: '42' }, label: 'Prüfe Design...' },
       ],
     })
   })

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect } from 'vitest'
 
 const BASE = process.env.TEST_API_URL || 'http://localhost:3000'
@@ -27,7 +28,7 @@ describe('Datasets API', () => {
   it('POST /api/items/[id]/datasets uploads CSV and returns parsed DataSet', async () => {
     const csvContent = 'name,email,age\nAlice,alice@test.com,30\nBob,bob@test.com,25'
     const formData = new FormData()
-    formData.append('file', new Blob([csvContent], { type: 'text/csv' }), 'test.csv')
+    formData.append('file', new File([csvContent], 'test.csv', { type: 'text/csv' }))
 
     const res = await fetch(`${BASE}/api/items/${itemId}/datasets`, {
       method: 'POST',
