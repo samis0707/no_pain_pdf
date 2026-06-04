@@ -3,6 +3,7 @@ import { createProvider } from './registry'
 import {
   getTemplate,
   updateTemplate,
+  updateTemplateHtml,
   getDataInfo,
   analyzeData,
   renderPreview,
@@ -11,6 +12,8 @@ import {
   getData,
   updateData,
   getHelpers,
+  getPageFormats,
+  updatePageFormat,
 } from './tools'
 
 type ToolHandler = (itemId: string, args: Record<string, unknown>) => Promise<unknown>
@@ -34,6 +37,15 @@ const toolHandlers: Record<string, ToolHandler> = {
   update_data: (itemId, args) =>
     updateData(itemId, args.rows as Record<string, unknown>[]),
   get_helpers: (itemId) => getHelpers(itemId),
+  update_template_html: (itemId, args) =>
+    updateTemplateHtml(itemId, args.html as string),
+  get_page_formats: (itemId) => getPageFormats(itemId),
+  update_page_format: (itemId, args) =>
+    updatePageFormat(
+      itemId,
+      args.pageFormatId as number | null | undefined,
+      args.css as string | undefined,
+    ),
 }
 
 const TOOL_DEFINITIONS = [
@@ -169,6 +181,49 @@ const TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: { itemId: { type: 'string', description: 'The item ID' } },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_template_html',
+      description: 'Update ONLY the HTML content of the template. CSS is NEVER modified by this tool. Use update_page_format to change CSS or page format.',
+      parameters: {
+        type: 'object',
+        properties: {
+          itemId: { type: 'string', description: 'The item ID' },
+          html: { type: 'string', description: 'The new HTML content (Handlebars syntax)' },
+        },
+        required: ['itemId', 'html'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_page_formats',
+      description: 'List all available page formats with their dimensions and the currently selected format for this item',
+      parameters: {
+        type: 'object',
+        properties: { itemId: { type: 'string', description: 'The item ID' } },
+        required: ['itemId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_page_format',
+      description: 'Change the page format and/or update the CSS for the template. Use this tool for any CSS changes or page format selection.',
+      parameters: {
+        type: 'object',
+        properties: {
+          itemId: { type: 'string', description: 'The item ID' },
+          pageFormatId: { type: 'number', description: 'The ID of the page format to switch to (omit or set null to keep current)' },
+          css: { type: 'string', description: 'New CSS content (omit to keep current CSS)' },
+        },
+        required: ['itemId'],
       },
     },
   },

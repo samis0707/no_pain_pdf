@@ -9,11 +9,19 @@ function parsePrintItemId(itemId: string): number {
 
 export async function getTemplate(
   itemId: string,
-): Promise<{ html: string; css: string; name: string }> {
+): Promise<{ html: string; css: string; name: string; pageFormat: { id: number; name: string; widthMm: number; heightMm: number; category: string; isPreset: boolean } | null }> {
   const id = parsePrintItemId(itemId)
-  const item = await prisma.printItem.findUnique({ where: { id } })
+  const item = await prisma.printItem.findUnique({
+    where: { id },
+    include: { pageFormat: true },
+  })
   if (!item) throw new Error(`Item not found: ${itemId}`)
-  return { html: item.html ?? '', css: item.css ?? '', name: item.name }
+  return {
+    html: item.html ?? '',
+    css: item.css ?? '',
+    name: item.name,
+    pageFormat: item.pageFormat ?? null,
+  }
 }
 
 export async function updateTemplate(
@@ -34,6 +42,59 @@ export async function updateTemplate(
     data,
   })
   return { html: updated.html ?? '', css: updated.css ?? '', version: updated.version }
+}
+
+export async function updateTemplateHtml(
+  itemId: string,
+  html: string,
+): Promise<{ html: string; css: string; version: number }> {
+  const id = parsePrintItemId(itemId)
+  const item = await prisma.printItem.findUnique({ where: { id } })
+  if (!item) throw new Error(`Item not found: ${itemId}`)
+
+  const updated = await prisma.printItem.update({
+    where: { id },
+    data: { html, version: item.version + 1 },
+  })
+  return { html: updated.html ?? '', css: updated.css ?? '', version: updated.version }
+}
+
+export async function getPageFormats(
+  itemId: string,
+): Promise<{ formats: Array<{ id: number; name: string; widthMm: number; heightMm: number; category: string; isPreset: boolean }>; currentId: number | null }> {
+  const id = parsePrintItemId(itemId)
+  const [formats, item] = await Promise.all([
+    prisma.pageFormat.findMany(),
+    prisma.printItem.findUnique({ where: { id }, select: { pageFormatId: true } }),
+  ])
+  if (!item) throw new Error(`Item not found: ${itemId}`)
+  return { formats, currentId: item.pageFormatId }
+}
+
+export async function updatePageFormat(
+  itemId: string,
+  pageFormatId?: number | null | undefined,
+  css?: string | undefined,
+): Promise<{ html: string; css: string; pageFormatId: number | null; version: number }> {
+  const id = parsePrintItemId(itemId)
+  const item = await prisma.printItem.findUnique({ where: { id } })
+  if (!item) throw new Error(`Item not found: ${itemId}`)
+
+  const data: { pageFormatId?: number | null; css?: string; version: number } = { version: item.version + 1 }
+  if (pageFormatId !== undefined) data.pageFormatId = pageFormatId
+  if (css !== undefined) data.css = css
+
+  const updated = await prisma.printItem.update({
+    where: { id },
+    data,
+    include: { pageFormat: true },
+  })
+  return {
+    html: updated.html ?? '',
+    css: updated.css ?? '',
+    pageFormatId: updated.pageFormatId,
+    version: updated.version,
+  }
 }
 
 export async function getDataInfo(

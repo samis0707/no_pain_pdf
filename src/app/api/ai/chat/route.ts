@@ -3,6 +3,7 @@ import { loadMessages } from '@/lib/ai/conversation'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import { getTemplate, getDataInfo, getHelpers, getAssets } from '@/lib/ai/tools'
 import { handleChatRequest } from '@/lib/ai/chat-route'
+import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,12 +20,18 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🌐 [API] Loading context: messages, template, data, helpers, assets')
-    const [existing, template, dataInfo, helpers, assetsResult] = await Promise.all([
+    const id = parseInt(itemId)
+    const [existing, template, dataInfo, helpers, assetsResult, itemWithFormat, allFormats] = await Promise.all([
       loadMessages(itemId),
-      getTemplate(itemId).catch(() => ({ name: 'Untitled', html: '', css: '' })),
+      getTemplate(itemId).catch(() => ({ name: 'Untitled', html: '', css: '', pageFormat: null })),
       getDataInfo(itemId).catch(() => ({ columns: [], rowCount: 0, sampleRows: [] })),
       getHelpers(itemId).catch(() => ({ builtIn: [], custom: [] })),
       getAssets(itemId).catch(() => ({ assets: [] })),
+      isNaN(id) ? Promise.resolve(null) : prisma.printItem.findUnique({
+        where: { id },
+        include: { pageFormat: true },
+      }).catch(() => null),
+      prisma.pageFormat.findMany().catch(() => []),
     ])
 
     const systemPrompt = buildSystemPrompt({
@@ -36,6 +43,8 @@ export async function POST(request: NextRequest) {
       sampleRows: dataInfo.sampleRows,
       rowCount: dataInfo.rowCount,
       assets: assetsResult.assets,
+      pageFormat: itemWithFormat?.pageFormat ?? null,
+      availablePageFormats: allFormats,
     })
 
     console.log('🌐 [API] System prompt length:', systemPrompt.length, 'chars')

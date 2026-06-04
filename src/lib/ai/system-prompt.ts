@@ -21,6 +21,8 @@ interface SystemPromptContext {
   sampleRows: Record<string, unknown>[]
   rowCount: number
   assets: Array<{ filename: string; url: string }>
+  pageFormat: { id: number; name: string; widthMm: number; heightMm: number; category: string; isPreset: boolean } | null
+  availablePageFormats: Array<{ id: number; name: string; widthMm: number; heightMm: number; category: string; isPreset: boolean }>
 }
 
 const BUILT_IN_HELPERS: HelperInfo[] = [
@@ -71,6 +73,18 @@ export function buildSystemPrompt(context: SystemPromptContext): string {
   lines.push('```')
   lines.push('')
 
+  lines.push('## Page Format')
+  lines.push('')
+  if (context.pageFormat) {
+    lines.push(`- Current format: ${context.pageFormat.name} (${context.pageFormat.widthMm}×${context.pageFormat.heightMm}mm)`)
+  } else {
+    lines.push('- Current format: No format selected')
+  }
+  lines.push(`- Available formats: ${context.availablePageFormats.map(f => `${f.name} (${f.widthMm}×${f.heightMm}mm)`).join(', ')}`)
+  lines.push('')
+  lines.push('To change the page format or update CSS, use the `update_page_format` tool.')
+  lines.push('To update only the template HTML, use the `update_template_html` tool.')
+  lines.push('')
   lines.push('## Dataset')
   lines.push('')
   lines.push(`- Columns: ${context.dataColumns.join(', ')}`)
