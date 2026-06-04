@@ -11,6 +11,8 @@ interface PageFormatState {
 
 interface TemplateState {
   itemId: number | null
+  projectId: number | null
+  projectName: string
   html: string
   css: string
   name: string
@@ -33,6 +35,8 @@ export { type PageFormatState }
 
 export const useTemplateStore = create<TemplateState>()((set, get) => ({
   itemId: null,
+  projectId: null,
+  projectName: '',
   html: '',
   css: '',
   name: '',
@@ -69,25 +73,35 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
       const res = await fetch(`/api/items/${itemId}`)
       if (!res.ok) throw new Error('Failed to fetch template')
       const data = await res.json()
-      set({ html: data.html ?? '', css: data.css ?? '', name: data.name ?? '', miscText: data.miscText ?? '', pageFormat: data.pageFormat ?? null })
+      set({ html: data.html ?? '', css: data.css ?? '', name: data.name ?? '', miscText: data.miscText ?? '', pageFormat: data.pageFormat ?? null, projectId: data.projectId ?? null })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to fetch template' })
     }
   },
 
   saveTemplate: async () => {
-    const { itemId, html, css, miscText } = get()
+    const { itemId, html, css, miscText, pageFormat } = get()
     if (!itemId) return
+
+    const body: Record<string, unknown> = { html, css, miscText }
+    if (pageFormat) {
+      body.pageFormatId = pageFormat.id
+    }
 
     set({ isSaving: true, error: null })
     try {
       const res = await fetch(`/api/items/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html, css, miscText }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error('Failed to save template')
-      set({ lastSaved: new Date() })
+      const data = await res.json()
+      set({
+        lastSaved: new Date(),
+        version: data.version,
+        pageFormat: data.pageFormat ?? get().pageFormat,
+      })
     } catch (e) {
       set({ error: e instanceof Error ? e.message : 'Failed to save template' })
     } finally {

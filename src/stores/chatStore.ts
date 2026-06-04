@@ -3,6 +3,7 @@ import { createSSEReader } from '@/lib/ai/sse-reader'
 import { applyTemplateChanges } from '@/lib/ai/apply-flow'
 import { useTemplateStore } from '@/stores/templateStore'
 import type { ChatMessage } from '@/lib/ai/types'
+import { TOOL_LABELS_DE } from '@/lib/ai/tool-labels'
 
 export type { ChatMessage }
 
@@ -102,6 +103,35 @@ export const useChatStore = create<ChatState>()((set, get) => ({
               css: event.data.args.css as string | undefined,
             })
             await useTemplateStore.getState().saveTemplate()
+          } else if (event.data.name === 'update_template_html') {
+            applyTemplateChanges({
+              html: event.data.args.html as string | undefined,
+            })
+            await useTemplateStore.getState().saveTemplate()
+          } else if (event.data.name === 'update_page_format') {
+            const css = event.data.args.css as string | undefined
+            const pageFormatId = event.data.args.pageFormatId as number | undefined
+
+            if (css !== undefined) {
+              applyTemplateChanges({ css })
+            }
+            if (pageFormatId !== undefined) {
+              const itemId = get().itemId
+              if (itemId) {
+                const body: Record<string, unknown> = { pageFormatId }
+                if (css !== undefined) {
+                  body.css = css
+                }
+                await fetch(`/api/items/${itemId}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(body),
+                })
+                await useTemplateStore.getState().fetchTemplate()
+              }
+            } else if (css !== undefined) {
+              await useTemplateStore.getState().saveTemplate()
+            }
           } else if (event.data.name === 'register_helper') {
             const currentMisc = useTemplateStore.getState().miscText
             let parsed: Record<string, unknown> = {}
@@ -125,9 +155,14 @@ export const useChatStore = create<ChatState>()((set, get) => ({
               {
                 role: 'assistant',
                 content: '',
-                toolCalls: [
-                  { id: event.data.id, name: event.data.name, args: event.data.args },
-                ],
+                  toolCalls: [
+                    {
+                      id: event.data.id,
+                      name: event.data.name,
+                      args: event.data.args,
+                      label: TOOL_LABELS_DE[event.data.name] || `Führe ${event.data.name} aus...`,
+                    },
+                  ],
               },
             ],
           }))
