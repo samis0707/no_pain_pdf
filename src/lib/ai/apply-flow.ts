@@ -2,6 +2,7 @@ import { useTemplateStore } from '@/stores/templateStore'
 import { usePreviewStore } from '@/stores/previewStore'
 import { useDataStore } from '@/stores/dataStore'
 import { loadHelpers } from '@/lib/helper-loader'
+import { applyFieldMapping } from '@/utils/applyMapping'
 
 interface ApplyChanges {
   html?: string
@@ -33,9 +34,11 @@ export function applyTemplateChanges(changes: ApplyChanges): void {
 
   const updated = useTemplateStore.getState()
   const dataRows = useDataStore.getState().rows
+  const mapping = useDataStore.getState().mapping
+  const mappedRows = applyFieldMapping(dataRows, mapping)
 
-  const data: Record<string, unknown> = dataRows.length > 0
-    ? { ...dataRows[0], rows: dataRows }
+  const data: Record<string, unknown> = mappedRows.length > 0
+    ? { ...mappedRows[0], rows: mappedRows }
     : {}
 
   usePreviewStore.getState().compile(updated.html, updated.css, data, updated.miscText)

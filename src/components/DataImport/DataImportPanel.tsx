@@ -7,12 +7,18 @@ import DataPreview from './DataPreview'
 import FieldMapper from './FieldMapper'
 
 export default function DataImportPanel({ itemId }: { itemId: number }) {
-  const { setItemId, fetchDatasets, columns } = useDataStore()
+  const { setItemId, fetchDatasets, columns, datasets, selectedDatasetId, selectDataset } = useDataStore()
 
   useEffect(() => {
     setItemId(itemId)
     fetchDatasets()
   }, [itemId, setItemId, fetchDatasets])
+
+  useEffect(() => {
+    if (datasets.length > 0 && selectedDatasetId === null) {
+      selectDataset(datasets[0].id)
+    }
+  }, [datasets, selectedDatasetId, selectDataset])
 
   const hasData = columns.length > 0
 

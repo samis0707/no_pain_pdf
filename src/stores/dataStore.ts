@@ -17,6 +17,7 @@ interface DataState {
   selectDataset: (id: number | null) => void
   mapping: string
   setMapping: (mapping: string) => void
+  saveMapping: () => Promise<void>
   clearError: () => void
 }
 
@@ -134,7 +135,7 @@ export const useDataStore = create<DataState>()((set, get) => ({
         columns,
         rows,
         rowCount: dataset.rowCount,
-        mapping: dataset.mapping,
+        mapping: dataset.mapping === '[]' ? '' : dataset.mapping,
       })
     } catch {
       set({ error: 'Failed to parse dataset' })
@@ -143,6 +144,24 @@ export const useDataStore = create<DataState>()((set, get) => ({
 
   setMapping: (mapping) => {
     set({ mapping })
+  },
+
+  saveMapping: async () => {
+    const { itemId, selectedDatasetId, mapping } = get()
+    if (!itemId || !selectedDatasetId) return
+
+    const res = await fetch(`/api/items/${itemId}/datasets/${selectedDatasetId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mapping }),
+    })
+
+    if (!res.ok) {
+      set({ error: 'Failed to save mapping' })
+      return
+    }
+
+    await get().fetchDatasets()
   },
 
   clearError: () => {

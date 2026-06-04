@@ -6,6 +6,7 @@ import { useTemplateStore } from '@/stores/templateStore'
 import { useDataStore } from '@/stores/dataStore'
 import { calculateScale } from '@/utils/previewScale'
 import { getPageFormatDimensions } from '@/utils/pageFormat'
+import { applyFieldMapping } from '@/utils/applyMapping'
 
 const MM_TO_PX = 3.7795
 
@@ -13,7 +14,7 @@ export default function PreviewPanel() {
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
   const { html, css, miscText, pageFormat } = useTemplateStore()
-  const { rows } = useDataStore()
+  const { rows, mapping } = useDataStore()
   const { compiledHtml, isCompiling, compileError, compile } = usePreviewStore()
 
   const fmt = pageFormat
@@ -21,11 +22,12 @@ export default function PreviewPanel() {
     : getPageFormatDimensions('A4', 'portrait')
 
   useEffect(() => {
-    const sampleData: Record<string, unknown> = rows.length > 0
-      ? { ...rows[0], rows }
+    const mappedRows = applyFieldMapping(rows, mapping)
+    const sampleData: Record<string, unknown> = mappedRows.length > 0
+      ? { ...mappedRows[0], rows: mappedRows }
       : {}
     compile(html, css, sampleData, miscText)
-  }, [html, css, rows, miscText, compile])
+  }, [html, css, rows, mapping, miscText, compile])
 
   useEffect(() => {
     const container = containerRef.current
@@ -39,7 +41,8 @@ export default function PreviewPanel() {
     return () => resizeObserver.disconnect()
   }, [fmt.widthMm, fmt.heightMm])
 
-  const pageCss = `@page { size: ${fmt.widthMm}mm ${fmt.heightMm}mm; margin: 0; }`
+  const pageCss = `@page { size: ${fmt.widthMm}mm ${fmt.heightMm}mm; margin: 0; }
+html, body { margin: 0; overflow: hidden; width: 100%; height: 100%; }`
   const displayHtml = compiledHtml
     ? compiledHtml.replace('<style>', `<style>${pageCss}\n`)
     : ''

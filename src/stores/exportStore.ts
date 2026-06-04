@@ -4,6 +4,7 @@ import { useTemplateStore } from '@/stores/templateStore'
 import { useDataStore } from '@/stores/dataStore'
 import { loadHelpers } from '@/lib/helper-loader'
 import { getPageFormatDimensions } from '@/utils/pageFormat'
+import { applyFieldMapping } from '@/utils/applyMapping'
 import '@/lib/handlebars-helpers'
 
 interface ExportState {
@@ -48,7 +49,9 @@ export const useExportStore = create<ExportState>()((set, get) => ({
       const { pageSize, orientation, margins } = get()
 
       const dataRows = useDataStore.getState().rows
-      const data = dataRows.length > 0 ? { ...dataRows[0], rows: dataRows } : {}
+      const mapping = useDataStore.getState().mapping
+      const mappedRows = applyFieldMapping(dataRows, mapping)
+      const data = mappedRows.length > 0 ? { ...mappedRows[0], rows: mappedRows } : {}
       const template = Handlebars.compile(html)
       const compiledHtml = template(data)
 
