@@ -14,7 +14,7 @@ def test_generates_pdf_from_html():
     assert isinstance(pdf_bytes, bytes)
     assert len(pdf_bytes) > 0
     # PDF header
-    assert pdf_bytes[:4] == b'%PDF-'
+    assert pdf_bytes[:5] == b'%PDF-'
 
 
 def test_pdf_contains_custom_text():
