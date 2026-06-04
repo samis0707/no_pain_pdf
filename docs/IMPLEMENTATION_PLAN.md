@@ -249,6 +249,12 @@ The output quality that makes this useful for real print shops.
    - `POST /api/pdf/generate` proxies to WeasyPrint → returns PDF
    - PDF/UA accessibility tagging (option, not default for print flyers)
 
+5. **Upgrade multi-page preview with WeasyPrint page images** (1.5h)
+   - Replace client-side CSS clip/transform page splitting with WeasyPrint-rendered page images
+   - Use pdf2image or pdf.js to render each PDF page as an image/canvas for the preview
+   - Reuse existing `previewStore` pagination state (`currentPage`, `totalPages`, navigation actions) and `PageNavigator` component from the initial CSS-based implementation
+   - Gives pixel-perfect preview respecting `@page`, `page-break-*`, bleed, crop marks, and CMYK
+
 ### Test coverage
 - WeasyPrint output matches expected page count and size
 - API proxy returns correct Content-Type
