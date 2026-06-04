@@ -13,8 +13,9 @@ next-env.d.ts
 .env.production.local
 
 # --- Python pdf-service ---
-pdf-service/__pycache__/
-pdf-service/*.pyc
+__pycache__/
+*.pyc
+*.egg-info/
 pdf-service/.venv/
 pdf-service/venv/
 pdf-service/.python-version
