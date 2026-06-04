@@ -1,0 +1,15 @@
+export const TOOL_LABELS_DE: Record<string, string> = {
+  get_template: 'Prüfe Design...',
+  update_template: 'Aktualisiere Vorlage...',
+  update_template_html: 'Aktualisiere Vorlage (HTML)...',
+  get_page_formats: 'Lade Seitenformate...',
+  update_page_format: 'Aktualisiere Seitenformat...',
+  get_data_info: 'Lade Dateninformationen...',
+  analyze_data: 'Analysiere Daten...',
+  render_preview: 'Erstelle Vorschau...',
+  get_assets: 'Lade Ressourcen...',
+  register_helper: 'Registriere Helfer...',
+  get_data: 'Lade Daten...',
+  update_data: 'Aktualisiere Daten...',
+  get_helpers: 'Lade Helfer...',
+}
