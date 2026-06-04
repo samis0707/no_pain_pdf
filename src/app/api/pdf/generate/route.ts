@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server'
-import puppeteer from 'puppeteer'
+
+const WEASYPRINT_URL = process.env.WEASYPRINT_URL ?? 'http://localhost:3001'
 
 export async function POST(request: NextRequest) {
-  let body: { html?: string; css?: string; options?: { format?: string; orientation?: string; margin?: string } }
+  let body: { html?: string; css?: string; options?: Record<string, string> }
   try {
     body = await request.json()
   } catch {
@@ -19,37 +20,27 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const html = body.html
-  const css = body.css ?? ''
-  const options = body.options ?? {}
-
-  const marginMap: Record<string, string> = {
-    narrow: '0.5cm',
-    normal: '1cm',
-    wide: '2cm',
-  }
-  const margin = marginMap[options.margin ?? 'normal'] || '1cm'
-  const marginObj = { top: margin, right: margin, bottom: margin, left: margin }
-
-  const format = (options.format ?? 'A4').toLowerCase() as 'a4' | 'letter'
-
   try {
-    const browser = await puppeteer.launch({ headless: true })
-    const page = await browser.newPage()
-
-    const document = `<!DOCTYPE html><html><head><style>${css}</style></head><body>${html}</body></html>`
-    await page.setContent(document, { waitUntil: 'load' })
-
-    const pdf = await page.pdf({
-      format,
-      landscape: options.orientation === 'landscape',
-      margin: marginObj,
-      printBackground: true,
+    const response = await fetch(`${WEASYPRINT_URL}/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        html: body.html,
+        css: body.css ?? '',
+        options: body.options ?? {},
+      }),
     })
 
-    await browser.close()
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'PDF generation failed' }))
+      return new Response(JSON.stringify(err), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
 
-    return new Response(new Uint8Array(pdf), {
+    const pdfBuffer = await response.arrayBuffer()
+    return new Response(new Uint8Array(pdfBuffer), {
       headers: { 'Content-Type': 'application/pdf' },
     })
   } catch (error: unknown) {
