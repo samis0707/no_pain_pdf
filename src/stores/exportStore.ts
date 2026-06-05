@@ -4,6 +4,7 @@ import { useTemplateStore } from '@/stores/templateStore'
 import { useDataStore } from '@/stores/dataStore'
 import { loadHelpers } from '@/lib/helper-loader'
 import { getPageFormatDimensions } from '@/utils/pageFormat'
+import { buildPagedCss } from '@/utils/pagedCss'
 import { applyFieldMapping } from '@/utils/applyMapping'
 import '@/lib/handlebars-helpers'
 
@@ -11,12 +12,18 @@ interface ExportState {
   pageSize: string
   orientation: string
   margins: string
+  bleed: number
+  cropMarks: boolean
+  colorMode: 'rgb' | 'cmyk'
   isExporting: boolean
   error: string | null
 
   setPageSize: (size: string) => void
   setOrientation: (orientation: string) => void
   setMargins: (margins: string) => void
+  setBleed: (bleed: number) => void
+  setCropMarks: (cropMarks: boolean) => void
+  setColorMode: (colorMode: 'rgb' | 'cmyk') => void
   exportPdf: (html: string, css: string) => Promise<void>
   getEffectivePageFormat: () => { widthMm: number; heightMm: number }
 }
@@ -25,6 +32,9 @@ export const useExportStore = create<ExportState>()((set, get) => ({
   pageSize: 'A4',
   orientation: 'portrait',
   margins: 'normal',
+  bleed: 0,
+  cropMarks: false,
+  colorMode: 'rgb',
   isExporting: false,
   error: null,
 
@@ -33,6 +43,12 @@ export const useExportStore = create<ExportState>()((set, get) => ({
   setOrientation: (orientation) => set({ orientation }),
 
   setMargins: (margins) => set({ margins }),
+
+  setBleed: (bleed) => set({ bleed: Math.max(0, Math.min(5, bleed)) }),
+
+  setCropMarks: (cropMarks) => set({ cropMarks }),
+
+  setColorMode: (colorMode) => set({ colorMode }),
 
   getEffectivePageFormat: () => {
     const templatePageFormat = useTemplateStore.getState().pageFormat
@@ -46,7 +62,7 @@ export const useExportStore = create<ExportState>()((set, get) => ({
   exportPdf: async (html, css) => {
     set({ isExporting: true, error: null })
     try {
-      const { pageSize, orientation, margins } = get()
+      const { pageSize, orientation, margins, bleed, cropMarks, colorMode } = get()
 
       const dataRows = useDataStore.getState().rows
       const mapping = useDataStore.getState().mapping
@@ -55,13 +71,22 @@ export const useExportStore = create<ExportState>()((set, get) => ({
       const template = Handlebars.compile(html)
       const compiledHtml = template(data)
 
+      const { widthMm, heightMm } = get().getEffectivePageFormat()
+      const pageCss = buildPagedCss(widthMm, heightMm, bleed, cropMarks)
+      const fullCss = `${pageCss}\n\n${css}`
+
+      const options: Record<string, unknown> = { format: pageSize, orientation, margin: margins }
+      if (colorMode === 'cmyk') {
+        options.pdf_variant = 'pdf/x-4'
+      }
+
       const res = await fetch('/api/pdf/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           html: compiledHtml,
-          css,
-          options: { format: pageSize, orientation, margin: margins },
+          css: fullCss,
+          options,
         }),
       })
 

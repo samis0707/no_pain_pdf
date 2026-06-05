@@ -21,7 +21,7 @@ const marginOptions = [
 ]
 
 export default function ExportPanel() {
-  const { pageSize, orientation, margins, isExporting, error, setPageSize, setOrientation, setMargins, exportPdf } = useExportStore()
+  const { pageSize, orientation, margins, bleed, cropMarks, colorMode, isExporting, error, setPageSize, setOrientation, setMargins, setBleed, setCropMarks, setColorMode, exportPdf } = useExportStore()
   const { html, css } = useTemplateStore()
 
   const handleDownload = () => {
@@ -69,6 +69,47 @@ export default function ExportPanel() {
             ))}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          Bleed: {bleed}mm
+        </label>
+        <input
+          type="range"
+          min={0}
+          max={5}
+          step={1}
+          value={bleed}
+          onChange={(e) => setBleed(Number(e.target.value))}
+          className="w-full"
+        />
+        <div className="flex justify-between text-xs text-zinc-400">
+          <span>0mm</span>
+          <span>5mm</span>
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={cropMarks}
+          onChange={(e) => setCropMarks(e.target.checked)}
+          className="rounded"
+        />
+        Crop marks
+      </label>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Color Mode</label>
+        <select
+          value={colorMode}
+          onChange={(e) => setColorMode(e.target.value as 'rgb' | 'cmyk')}
+          className="w-full border rounded-md px-3 py-2 text-sm"
+        >
+          <option value="rgb">RGB</option>
+          <option value="cmyk">CMYK (PDF/X-4)</option>
+        </select>
       </div>
 
       {error && (
