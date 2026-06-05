@@ -3,6 +3,7 @@ import Handlebars from 'handlebars'
 import { useChatStore, type ChatMessage } from '@/stores/chatStore'
 import { useTemplateStore } from '@/stores/templateStore'
 import { usePreviewStore } from '@/stores/previewStore'
+import { useExportStore } from '@/stores/exportStore'
 import { unregisterCustomHelpers } from '@/lib/helper-loader'
 
 function createMockSSEStream(
@@ -214,6 +215,11 @@ describe('chatStore', () => {
         isCompiling: false,
         compileError: null,
       })
+      useExportStore.setState({
+        bleed: 0,
+        cropMarks: false,
+        colorMode: 'rgb',
+      })
       unregisterCustomHelpers()
     })
 
@@ -358,6 +364,60 @@ describe('chatStore', () => {
 
       expect(useTemplateStore.getState().html).toBe('<p>changed</p>')
       expect(useTemplateStore.getState().version).toBe(1)
+    })
+
+    it('updates exportStore bleed from update_export_settings tool_call', async () => {
+      useChatStore.getState().setItemId('item-1')
+      useTemplateStore.setState({ itemId: 1 })
+
+      const stream = createMockSSEStream([
+        {
+          type: 'tool_call',
+          data: { id: 'call_1', name: 'update_export_settings', args: { bleed: 3 } },
+        },
+        { type: 'done' },
+      ])
+      mockFetch.mockResolvedValue(new Response(stream, { status: 200 }))
+
+      await useChatStore.getState().sendMessage('Set 3mm bleed')
+
+      expect(useExportStore.getState().bleed).toBe(3)
+    })
+
+    it('updates exportStore cropMarks from update_export_settings tool_call', async () => {
+      useChatStore.getState().setItemId('item-1')
+      useTemplateStore.setState({ itemId: 1 })
+
+      const stream = createMockSSEStream([
+        {
+          type: 'tool_call',
+          data: { id: 'call_1', name: 'update_export_settings', args: { cropMarks: true } },
+        },
+        { type: 'done' },
+      ])
+      mockFetch.mockResolvedValue(new Response(stream, { status: 200 }))
+
+      await useChatStore.getState().sendMessage('Enable crop marks')
+
+      expect(useExportStore.getState().cropMarks).toBe(true)
+    })
+
+    it('updates exportStore colorMode from update_export_settings tool_call', async () => {
+      useChatStore.getState().setItemId('item-1')
+      useTemplateStore.setState({ itemId: 1 })
+
+      const stream = createMockSSEStream([
+        {
+          type: 'tool_call',
+          data: { id: 'call_1', name: 'update_export_settings', args: { colorMode: 'cmyk' } },
+        },
+        { type: 'done' },
+      ])
+      mockFetch.mockResolvedValue(new Response(stream, { status: 200 }))
+
+      await useChatStore.getState().sendMessage('Switch to CMYK')
+
+      expect(useExportStore.getState().colorMode).toBe('cmyk')
     })
 
     it('persists changes to DB via saveTemplate after update_template', async () => {
