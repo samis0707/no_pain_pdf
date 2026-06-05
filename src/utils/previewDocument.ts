@@ -1,10 +1,12 @@
+import { buildPagedCss } from '@/utils/pagedCss'
+
 export function buildPreviewDocument(
   bodyHtml: string,
   userCss: string,
   pageWidthMm: number,
   pageHeightMm: number,
 ): string {
-  const pageCss = `@page { size: ${pageWidthMm}mm ${pageHeightMm}mm; margin: 0; }`
+  const pageCss = buildPagedCss(pageWidthMm, pageHeightMm, undefined, undefined, '0')
   const fullCss = `${pageCss}\n\n${userCss}`
   return `<!DOCTYPE html>
 <html>
