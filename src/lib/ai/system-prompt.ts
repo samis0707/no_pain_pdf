@@ -131,5 +131,21 @@ export function buildSystemPrompt(context: SystemPromptContext): string {
     lines.push('')
   }
 
+  lines.push('## CSS Paged Media')
+  lines.push('')
+  lines.push('You can use CSS Paged Media features for print-ready PDF output.')
+  lines.push('')
+  lines.push('- `@page` — defines the page box size, margins, bleed, and crop marks')
+  lines.push('  - `size: 210mm 297mm;` sets the page dimensions')
+  lines.push('  - `bleed: 3mm;` adds a bleed area (0–5mm)')
+  lines.push('  - `marks: crop cross;` adds printer crop marks and crosshairs')
+  lines.push('- `device-cmyk()` — use CMYK colors for print: `color: device-cmyk(0, 0.8, 0.7, 0);`')
+  lines.push('- `running()` — capture running elements from the document for page headers/footers')
+  lines.push('- Named pages — use `@page :first`, `@page :blank`, or custom named pages with `page: name;` on elements')
+  lines.push('')
+  lines.push('The `update_page_format` tool can update CSS with these features. When exporting,')
+  lines.push('bleed, crop marks, and color mode (RGB/CMYK) can also be configured in the Export panel.')
+  lines.push('')
+
   return lines.join('\n')
 }
