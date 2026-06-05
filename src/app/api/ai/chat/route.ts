@@ -34,6 +34,18 @@ export async function POST(request: NextRequest) {
       prisma.pageFormat.findMany().catch(() => []),
     ])
 
+    let exportBleed: number | undefined
+    let exportCropMarks: boolean | undefined
+    let exportColorMode: string | undefined
+    if (itemWithFormat?.exportSettings) {
+      try {
+        const parsed = JSON.parse(itemWithFormat.exportSettings)
+        if (typeof parsed.bleed === 'number') exportBleed = parsed.bleed
+        if (typeof parsed.cropMarks === 'boolean') exportCropMarks = parsed.cropMarks
+        if (typeof parsed.colorMode === 'string') exportColorMode = parsed.colorMode
+      } catch { /* ignore parse errors */ }
+    }
+
     const systemPrompt = buildSystemPrompt({
       templateName: template.name,
       templateHtml: template.html,
@@ -45,6 +57,9 @@ export async function POST(request: NextRequest) {
       assets: assetsResult.assets,
       pageFormat: itemWithFormat?.pageFormat ?? null,
       availablePageFormats: allFormats,
+      bleed: exportBleed,
+      cropMarks: exportCropMarks,
+      colorMode: exportColorMode,
     })
 
     console.log('🌐 [API] System prompt length:', systemPrompt.length, 'chars')

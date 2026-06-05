@@ -23,6 +23,9 @@ interface SystemPromptContext {
   assets: Array<{ filename: string; url: string }>
   pageFormat: { id: number; name: string; widthMm: number; heightMm: number; category: string; isPreset: boolean } | null
   availablePageFormats: Array<{ id: number; name: string; widthMm: number; heightMm: number; category: string; isPreset: boolean }>
+  bleed?: number
+  cropMarks?: boolean
+  colorMode?: string
 }
 
 const BUILT_IN_HELPERS: HelperInfo[] = [
@@ -146,6 +149,25 @@ export function buildSystemPrompt(context: SystemPromptContext): string {
   lines.push('The `update_page_format` tool can update CSS with these features. When exporting,')
   lines.push('bleed, crop marks, and color mode (RGB/CMYK) can also be configured in the Export panel.')
   lines.push('')
+  lines.push('To configure export settings for PDF output, use the `update_export_settings` tool.')
+  lines.push('')
+
+  if (context.bleed !== undefined || context.cropMarks !== undefined || context.colorMode !== undefined) {
+    lines.push('## Export Settings')
+    lines.push('')
+    if (context.bleed !== undefined) {
+      lines.push(`- Bleed: ${context.bleed}mm`)
+    }
+    if (context.cropMarks !== undefined) {
+      lines.push(`- Crop marks: ${context.cropMarks ? 'enabled' : 'disabled'}`)
+    }
+    if (context.colorMode !== undefined) {
+      lines.push(`- Color mode: ${context.colorMode.toUpperCase()}`)
+    }
+    lines.push('')
+    lines.push('Use the `update_export_settings` tool to change these values.')
+    lines.push('')
+  }
 
   return lines.join('\n')
 }

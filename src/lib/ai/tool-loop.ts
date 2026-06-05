@@ -14,6 +14,7 @@ import {
   getHelpers,
   getPageFormats,
   updatePageFormat,
+  updateExportSettings,
 } from './tools'
 
 type ToolHandler = (itemId: string, args: Record<string, unknown>) => Promise<unknown>
@@ -45,6 +46,13 @@ const toolHandlers: Record<string, ToolHandler> = {
       itemId,
       args.pageFormatId as number | null | undefined,
       args.css as string | undefined,
+    ),
+  update_export_settings: (itemId, args) =>
+    updateExportSettings(
+      itemId,
+      args.bleed as number | undefined,
+      args.cropMarks as boolean | undefined,
+      args.colorMode as 'rgb' | 'cmyk' | undefined,
     ),
 }
 
@@ -222,6 +230,23 @@ const TOOL_DEFINITIONS = [
           itemId: { type: 'string', description: 'The item ID' },
           pageFormatId: { type: 'number', description: 'The ID of the page format to switch to (omit or set null to keep current)' },
           css: { type: 'string', description: 'New CSS content (omit to keep current CSS)' },
+        },
+        required: ['itemId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_export_settings',
+      description: 'Set bleed, crop marks, and/or color mode for PDF export. Bleed range: 0-5mm. Color mode can be "rgb" or "cmyk".',
+      parameters: {
+        type: 'object',
+        properties: {
+          itemId: { type: 'string', description: 'The item ID' },
+          bleed: { type: 'number', description: 'Bleed in mm (0-5)' },
+          cropMarks: { type: 'boolean', description: 'Whether to include printer crop marks' },
+          colorMode: { type: 'string', enum: ['rgb', 'cmyk'], description: 'Color mode for the exported PDF' },
         },
         required: ['itemId'],
       },

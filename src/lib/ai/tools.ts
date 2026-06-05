@@ -264,6 +264,41 @@ const BUILT_IN_HELPERS: HelperInfo[] = [
   { name: 'ifContains', params: 'str, substring', description: 'Conditionally render block if str contains substring' },
 ]
 
+export async function updateExportSettings(
+  itemId: string,
+  bleed?: number,
+  cropMarks?: boolean,
+  colorMode?: 'rgb' | 'cmyk',
+): Promise<{ bleed: number; cropMarks: boolean; colorMode: 'rgb' | 'cmyk' }> {
+  const id = parsePrintItemId(itemId)
+  const item = await prisma.printItem.findUnique({ where: { id } })
+  if (!item) throw new Error(`Item not found: ${itemId}`)
+
+  if (colorMode !== undefined && colorMode !== 'rgb' && colorMode !== 'cmyk') {
+    throw new Error('colorMode must be "rgb" or "cmyk"')
+  }
+  if (bleed !== undefined && (bleed < 0 || bleed > 5)) {
+    throw new Error('bleed must be between 0 and 5')
+  }
+
+  const currentSettings: { bleed?: number; cropMarks?: boolean; colorMode?: 'rgb' | 'cmyk' } = (() => {
+    try { return JSON.parse(item.exportSettings ?? '{}') }
+    catch { return {} }
+  })()
+
+  const merged = { ...currentSettings }
+  if (bleed !== undefined) merged.bleed = bleed
+  if (cropMarks !== undefined) merged.cropMarks = cropMarks
+  if (colorMode !== undefined) merged.colorMode = colorMode
+
+  await prisma.printItem.update({
+    where: { id },
+    data: { exportSettings: JSON.stringify(merged) },
+  })
+
+  return { bleed: merged.bleed ?? 0, cropMarks: merged.cropMarks ?? false, colorMode: merged.colorMode ?? 'rgb' }
+}
+
 export async function getHelpers(
   itemId?: string,
 ): Promise<{

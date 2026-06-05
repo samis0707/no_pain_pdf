@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createSSEReader } from '@/lib/ai/sse-reader'
 import { applyTemplateChanges } from '@/lib/ai/apply-flow'
 import { useTemplateStore } from '@/stores/templateStore'
+import { useExportStore } from '@/stores/exportStore'
 import type { ChatMessage } from '@/lib/ai/types'
 import { TOOL_LABELS_DE } from '@/lib/ai/tool-labels'
 
@@ -131,6 +132,20 @@ export const useChatStore = create<ChatState>()((set, get) => ({
               }
             } else if (css !== undefined) {
               await useTemplateStore.getState().saveTemplate()
+            }
+          } else if (event.data.name === 'update_export_settings') {
+            const bleed = event.data.args.bleed as number | undefined
+            const cropMarks = event.data.args.cropMarks as boolean | undefined
+            const colorMode = event.data.args.colorMode as 'rgb' | 'cmyk' | undefined
+
+            if (bleed !== undefined) {
+              useExportStore.getState().setBleed(bleed)
+            }
+            if (cropMarks !== undefined) {
+              useExportStore.getState().setCropMarks(cropMarks)
+            }
+            if (colorMode !== undefined) {
+              useExportStore.getState().setColorMode(colorMode)
             }
           } else if (event.data.name === 'register_helper') {
             const currentMisc = useTemplateStore.getState().miscText
