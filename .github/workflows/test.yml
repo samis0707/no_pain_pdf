@@ -10,20 +10,21 @@ jobs:
   nextjs:
     name: Next.js (Vitest)
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test
-        ports:
-          - 5432:5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nopainpdf_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - uses: actions/checkout@v4
@@ -38,18 +39,26 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nopainpdf_test
 
       - name: Run migrations
-        run: npx prisma migrate dev --name init
+        run: npx prisma migrate deploy
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nopainpdf_test
 
       - name: Run tests
         run: npm run test
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nopainpdf_test
           NODE_ENV: test
+          S3_ENDPOINT: http://localhost:9000
+          S3_PORT: "9000"
+          S3_ACCESS_KEY: minioadmin
+          S3_SECRET_KEY: minioadmin
+          S3_BUCKET: uploads
+          S3_REGION: us-east-1
+          S3_FORCE_PATH_STYLE: "true"
+          WEASYPRINT_URL: http://localhost:3001
 
   python:
     name: Python (pytest)

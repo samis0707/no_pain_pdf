@@ -18,6 +18,8 @@
 - **Commit strategy**: RED commit (test written, fails) → GREEN commit (implementation passes test) → REFACTOR commit (clean up).
 - **Run tests locally**: `npm run test` (Next.js) or `cd pdf-service && pytest -v` (Python).
 - **CI**: Tests run automatically on every push/PR via `.github/workflows/test.yml`.
+- **Docker Compose**: The full stack runs via `docker compose up` (Next.js, Postgres, WeasyPrint, Ghostscript, MinIO). For local dev without Docker, set env vars from `.env.example` and run services individually.
+- **S3/MinIO**: `src/lib/s3.ts` provides upload/download/delete/signed-URL helpers against a MinIO bucket. Tests mock `@aws-sdk/client-s3`. Configure via `S3_*` env vars in `.env`.
 
 ## Testing Stack
 
@@ -26,6 +28,7 @@
 | **Next.js API routes + utils** | Vitest | `npm run test` |
 | **React components** | Vitest + React Testing Library | `npm run test` |
 | **Python WeasyPrint service** | pytest + httpx | `cd pdf-service && pytest -v` |
+| **Docker Compose infrastructure** | Vitest (file-system assertions) | `npm run test` |
 | **E2E (future)** | Playwright | `npx playwright test` |
 
 ## The TDD Cycle
@@ -49,3 +52,5 @@ Tests must assert **behavior** (side effects, state changes, branch coverage), n
 - `docs/IMPLEMENTATION_PLAN.md` — Epic-based implementation plan with user value per iteration
 - `docs/APPMV-422-MVP-PLAN.md` — Detailed technical reference (schema, routes, architecture)
 - `docs/entity_design.md` — ER diagram
+- `docker-compose.yml` — Full-stack orchestration (Next.js, WeasyPrint, MinIO)
+- `.env.example` — All required environment variables for local development without Docker

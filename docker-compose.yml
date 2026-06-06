@@ -3,13 +3,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: nopainpdf
-      POSTGRES_PASSWORD: nopainpdf
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: nopainpdf
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nopainpdf"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -61,10 +61,18 @@ services:
       retries: 3
 
   ghostscript:
-    image: jonasal/ghostscript:latest
+    build:
+      context: ./gs-service
     restart: unless-stopped
     ports:
       - "3002:3002"
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   nextjs:
     build:
@@ -74,7 +82,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://nopainpdf:nopainpdf@postgres:5432/nopainpdf
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/nopainpdf
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: minioadmin
@@ -87,6 +95,8 @@ services:
       postgres:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      weasyprint:
         condition: service_healthy
 
 volumes:

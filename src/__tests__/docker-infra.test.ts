@@ -6,7 +6,6 @@ import { readFileSync } from 'fs'
 import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
-// js-yaml has no types, but it's widely used and stable
 const yaml = require('js-yaml') as { load: (input: string) => unknown }
 
 const projectRoot = path.resolve(import.meta.dirname, '../..')
@@ -32,7 +31,7 @@ describe('Docker Compose infrastructure', () => {
   it('defines all required services', () => {
     const composePath = path.join(projectRoot, 'docker-compose.yml')
     const config = readYaml(composePath) as { services: Record<string, unknown> }
-    const expected = ['nextjs', 'weasyprint', 'postgres', 'minio', 'ghostscript']
+    const expected = ['nextjs', 'weasyprint', 'ghostscript', 'minio', 'postgres']
     for (const name of expected) {
       expect(config.services).toHaveProperty(name)
     }
@@ -58,14 +57,6 @@ describe('Docker Compose infrastructure', () => {
     expect(match).toBe(true)
   })
 
-  it('minio service has a health check', () => {
-    const composePath = path.join(projectRoot, 'docker-compose.yml')
-    const config = readYaml(composePath) as {
-      services: Record<string, { healthcheck?: Record<string, unknown> }>
-    }
-    expect(config.services.minio.healthcheck).toBeDefined()
-  })
-
   it('postgres service has a health check', () => {
     const composePath = path.join(projectRoot, 'docker-compose.yml')
     const config = readYaml(composePath) as {
@@ -74,7 +65,15 @@ describe('Docker Compose infrastructure', () => {
     expect(config.services.postgres.healthcheck).toBeDefined()
   })
 
-  it('nextjs service depends on postgres and minio', () => {
+  it('minio service has a health check', () => {
+    const composePath = path.join(projectRoot, 'docker-compose.yml')
+    const config = readYaml(composePath) as {
+      services: Record<string, { healthcheck?: Record<string, unknown> }>
+    }
+    expect(config.services.minio.healthcheck).toBeDefined()
+  })
+
+  it('nextjs service depends on postgres, minio, and weasyprint', () => {
     const composePath = path.join(projectRoot, 'docker-compose.yml')
     const config = readYaml(composePath) as {
       services: Record<string, { depends_on?: Record<string, unknown> | string[] }>
@@ -83,6 +82,7 @@ describe('Docker Compose infrastructure', () => {
     const depNames = Array.isArray(deps) ? deps : Object.keys(deps)
     expect(depNames).toContain('postgres')
     expect(depNames).toContain('minio')
+    expect(depNames).toContain('weasyprint')
   })
 
   it('has createbuckets init container for MinIO', () => {
@@ -91,6 +91,15 @@ describe('Docker Compose infrastructure', () => {
       services: Record<string, unknown>
     }
     expect(config.services).toHaveProperty('createbuckets')
+  })
+
+  it('uses postgresql DATABASE_URL for nextjs', () => {
+    const composePath = path.join(projectRoot, 'docker-compose.yml')
+    const config = readYaml(composePath) as {
+      services: Record<string, { environment?: Record<string, string> }>
+    }
+    const dbUrl = config.services.nextjs.environment?.DATABASE_URL ?? ''
+    expect(dbUrl).toMatch(/^postgresql:\/\//)
   })
 })
 
@@ -120,6 +129,38 @@ describe('Next.js Dockerfile', () => {
       dockerContent.includes('standalone')
     expect(hasStandalone).toBe(true)
   })
+
+  it('no longer copies better-sqlite3 native module', () => {
+    const dockerfilePath = path.join(projectRoot, 'Dockerfile')
+    const content = readFileSync(dockerfilePath, 'utf-8')
+    expect(content).not.toContain('better-sqlite3')
+  })
+})
+
+describe('Ghostscript service', () => {
+  it('Dockerfile exists in gs-service/', () => {
+    const dockerfilePath = path.join(projectRoot, 'gs-service', 'Dockerfile')
+    expect(existsSync(dockerfilePath)).toBe(true)
+  })
+
+  it('installs ghostscript system package', () => {
+    const dockerfilePath = path.join(projectRoot, 'gs-service', 'Dockerfile')
+    const content = readFileSync(dockerfilePath, 'utf-8').toLowerCase()
+    expect(content).toContain('ghostscript')
+  })
+
+  it('exposes port 3002 in Dockerfile', () => {
+    const dockerfilePath = path.join(projectRoot, 'gs-service', 'Dockerfile')
+    const content = readFileSync(dockerfilePath, 'utf-8')
+    expect(content).toContain('3002')
+  })
+
+  it('has a main.py with /convert endpoint', () => {
+    const mainPy = path.join(projectRoot, 'gs-service', 'app', 'main.py')
+    expect(existsSync(mainPy)).toBe(true)
+    const content = readFileSync(mainPy, 'utf-8')
+    expect(content).toContain('/convert')
+  })
 })
 
 describe('WeasyPrint Dockerfile', () => {
@@ -139,6 +180,12 @@ describe('WeasyPrint Dockerfile', () => {
 })
 
 describe('Environment configuration', () => {
+  it('.env.example includes postgresql DATABASE_URL', () => {
+    const envPath = path.join(projectRoot, '.env.example')
+    const content = readFileSync(envPath, 'utf-8')
+    expect(content).toMatch(/postgresql:\/\//)
+  })
+
   it('.env.example includes Docker-related S3 variables', () => {
     const envPath = path.join(projectRoot, '.env.example')
     const content = readFileSync(envPath, 'utf-8')
@@ -156,15 +203,34 @@ describe('Environment configuration', () => {
     }
   })
 
-  it('.env.example includes WEASYPRINT_URL', () => {
+  it('.env.example includes WEASYPRINT_URL and GHOSTSCRIPT_URL', () => {
     const envPath = path.join(projectRoot, '.env.example')
     const content = readFileSync(envPath, 'utf-8')
     expect(content).toContain('WEASYPRINT_URL')
+    expect(content).toContain('GHOSTSCRIPT_URL')
+  })
+})
+
+describe('Prisma schema uses postgresql', () => {
+  it('schema.prisma has provider = postgresql', () => {
+    const schemaPath = path.join(projectRoot, 'prisma', 'schema.prisma')
+    const content = readFileSync(schemaPath, 'utf-8')
+    expect(content).toContain('provider = "postgresql"')
   })
 
-  it('.env.example includes GHOSTSCRIPT_URL', () => {
-    const envPath = path.join(projectRoot, '.env.example')
-    const content = readFileSync(envPath, 'utf-8')
-    expect(content).toContain('GHOSTSCRIPT_URL')
+  it('lib/prisma.ts uses PrismaPg adapter for PostgreSQL', () => {
+    const prismaLib = path.join(projectRoot, 'src', 'lib', 'prisma.ts')
+    const content = readFileSync(prismaLib, 'utf-8')
+    expect(content).toContain('PrismaPg')
+    expect(content).toContain('PrismaClient')
+    expect(content).not.toContain('better-sqlite3')
+  })
+})
+
+describe('docker-entrypoint.sh', () => {
+  it('does not redirect stderr to stdout', () => {
+    const entrypointPath = path.join(projectRoot, 'docker-entrypoint.sh')
+    const content = readFileSync(entrypointPath, 'utf-8')
+    expect(content).not.toContain('2>&1')
   })
 })
