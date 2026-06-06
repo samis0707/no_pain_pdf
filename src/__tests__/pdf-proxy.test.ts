@@ -58,6 +58,25 @@ describe('POST /api/pdf/generate proxies to WeasyPrint', () => {
     expect(response.status).toBe(400)
   })
 
+  it('forwards pdf_tags option to WeasyPrint service', async () => {
+    const request = new NextRequest('http://localhost:3000/api/pdf/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        html: '<p>test</p>',
+        css: '',
+        options: { pdf_tags: true, pdf_variant: 'pdf/ua-1' },
+      }),
+    })
+
+    const response = await POST(request)
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string)
+    expect(sentBody.options.pdf_tags).toBe(true)
+    expect(sentBody.options.pdf_variant).toBe('pdf/ua-1')
+    expect(response.status).toBe(200)
+  })
+
   it('forwards error from WeasyPrint service', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,

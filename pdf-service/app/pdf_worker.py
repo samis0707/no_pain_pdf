@@ -27,6 +27,7 @@ def main() -> None:
         font_config=font_config,
         pdf_variant=options.get("pdf_variant"),
         pdf_forms=options.get("pdf_forms"),
+        pdf_tags=options.get("pdf_tags", False),
     )
 
     sys.stdout.buffer.write(pdf_bytes)

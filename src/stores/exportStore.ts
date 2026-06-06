@@ -15,6 +15,7 @@ interface ExportState {
   bleed: number
   cropMarks: boolean
   colorMode: 'rgb' | 'cmyk'
+  enableAccessibility: boolean
   isExporting: boolean
   error: string | null
 
@@ -24,6 +25,7 @@ interface ExportState {
   setBleed: (bleed: number) => void
   setCropMarks: (cropMarks: boolean) => void
   setColorMode: (colorMode: 'rgb' | 'cmyk') => void
+  setEnableAccessibility: (enabled: boolean) => void
   exportPdf: (html: string, css: string) => Promise<void>
   getEffectivePageFormat: () => { widthMm: number; heightMm: number }
 }
@@ -35,6 +37,7 @@ export const useExportStore = create<ExportState>()((set, get) => ({
   bleed: 0,
   cropMarks: false,
   colorMode: 'rgb',
+  enableAccessibility: false,
   isExporting: false,
   error: null,
 
@@ -50,6 +53,8 @@ export const useExportStore = create<ExportState>()((set, get) => ({
 
   setColorMode: (colorMode) => set({ colorMode }),
 
+  setEnableAccessibility: (enabled) => set({ enableAccessibility: enabled }),
+
   getEffectivePageFormat: () => {
     const templatePageFormat = useTemplateStore.getState().pageFormat
     if (templatePageFormat) {
@@ -62,7 +67,7 @@ export const useExportStore = create<ExportState>()((set, get) => ({
   exportPdf: async (html, css) => {
     set({ isExporting: true, error: null })
     try {
-      const { pageSize, orientation, margins, bleed, cropMarks, colorMode } = get()
+      const { pageSize, orientation, margins, bleed, cropMarks, colorMode, enableAccessibility } = get()
 
       const dataRows = useDataStore.getState().rows
       const mapping = useDataStore.getState().mapping
@@ -78,6 +83,12 @@ export const useExportStore = create<ExportState>()((set, get) => ({
       const options: Record<string, unknown> = { format: pageSize, orientation, margin: margins }
       if (colorMode === 'cmyk') {
         options.pdf_variant = 'pdf/x-4'
+      }
+      if (enableAccessibility) {
+        options.pdf_tags = true
+        if (!options.pdf_variant) {
+          options.pdf_variant = 'pdf/ua-1'
+        }
       }
 
       const res = await fetch('/api/pdf/generate', {

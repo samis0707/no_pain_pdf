@@ -450,5 +450,47 @@ describe('chatStore', () => {
       expect(template.lastSaved).not.toBeNull()
       expect(template.html).toBe('<h1>Saved</h1>')
     })
+
+    it('triggers exportStore.exportPdf when export_pdf tool_call is received', async () => {
+      useChatStore.getState().setItemId('item-1')
+      useTemplateStore.setState({ itemId: 1, html: '<h1>{{title}}</h1>', css: '' })
+
+      const exportPdfSpy = vi.spyOn(useExportStore.getState(), 'exportPdf').mockResolvedValue(undefined)
+
+      const stream = createMockSSEStream([
+        {
+          type: 'tool_call',
+          data: { id: 'call_1', name: 'export_pdf', args: {} },
+        },
+        { type: 'done' },
+      ])
+      mockFetch.mockResolvedValue(new Response(stream, { status: 200 }))
+
+      await useChatStore.getState().sendMessage('Export PDF')
+
+      expect(exportPdfSpy).toHaveBeenCalledTimes(1)
+      expect(exportPdfSpy).toHaveBeenCalledWith('<h1>{{title}}</h1>', '')
+    })
+
+    it('passes custom filename in export_pdf tool_call args', async () => {
+      useChatStore.getState().setItemId('item-1')
+      useTemplateStore.setState({ itemId: 1, html: '<h1>{{title}}</h1>', css: 'h1 { color: red; }' })
+
+      const exportPdfSpy = vi.spyOn(useExportStore.getState(), 'exportPdf').mockResolvedValue(undefined)
+
+      const stream = createMockSSEStream([
+        {
+          type: 'tool_call',
+          data: { id: 'call_1', name: 'export_pdf', args: { filename: 'flyer.pdf' } },
+        },
+        { type: 'done' },
+      ])
+      mockFetch.mockResolvedValue(new Response(stream, { status: 200 }))
+
+      await useChatStore.getState().sendMessage('Export as flyer.pdf')
+
+      expect(exportPdfSpy).toHaveBeenCalledTimes(1)
+      expect(exportPdfSpy).toHaveBeenCalledWith('<h1>{{title}}</h1>', 'h1 { color: red; }')
+    })
   })
 })

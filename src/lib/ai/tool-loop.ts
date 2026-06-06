@@ -15,6 +15,7 @@ import {
   getPageFormats,
   updatePageFormat,
   updateExportSettings,
+  generatePdf,
 } from './tools'
 
 type ToolHandler = (itemId: string, args: Record<string, unknown>) => Promise<unknown>
@@ -54,6 +55,7 @@ const toolHandlers: Record<string, ToolHandler> = {
       args.cropMarks as boolean | undefined,
       args.colorMode as 'rgb' | 'cmyk' | undefined,
     ),
+  export_pdf: (itemId) => generatePdf(itemId),
 }
 
 const TOOL_DEFINITIONS = [
@@ -247,6 +249,21 @@ const TOOL_DEFINITIONS = [
           bleed: { type: 'number', description: 'Bleed in mm (0-5)' },
           cropMarks: { type: 'boolean', description: 'Whether to include printer crop marks' },
           colorMode: { type: 'string', enum: ['rgb', 'cmyk'], description: 'Color mode for the exported PDF' },
+        },
+        required: ['itemId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'export_pdf',
+      description: 'Generate a PDF with the current template, data, and export settings. The PDF will be downloaded automatically. Configure export settings first using update_export_settings.',
+      parameters: {
+        type: 'object',
+        properties: {
+          itemId: { type: 'string', description: 'The item ID' },
+          filename: { type: 'string', description: 'Optional custom filename for the PDF (e.g. flyer.pdf)' },
         },
         required: ['itemId'],
       },

@@ -185,3 +185,45 @@ describe('exportPdf colorMode', () => {
     expect(body.options.pdf_variant).toBeUndefined()
   })
 })
+
+describe('exportStore enableAccessibility', () => {
+  it('defaults enableAccessibility to false', () => {
+    expect(useExportStore.getState().enableAccessibility).toBe(false)
+  })
+
+  it('setEnableAccessibility updates the value', () => {
+    useExportStore.getState().setEnableAccessibility(true)
+    expect(useExportStore.getState().enableAccessibility).toBe(true)
+
+    useExportStore.getState().setEnableAccessibility(false)
+    expect(useExportStore.getState().enableAccessibility).toBe(false)
+  })
+
+  it('includes pdf_variant pdf/ua-1 and pdf_tags when accessibility enabled', async () => {
+    useExportStore.getState().setEnableAccessibility(true)
+    await useExportStore.getState().exportPdf('<p>test</p>', '')
+
+    const body = getFetchOptions()
+    expect(body.options.pdf_variant).toBe('pdf/ua-1')
+    expect(body.options.pdf_tags).toBe(true)
+  })
+
+  it('does not include pdf_variant or pdf_tags when accessibility disabled', async () => {
+    useExportStore.getState().setEnableAccessibility(false)
+    await useExportStore.getState().exportPdf('<p>test</p>', '')
+
+    const body = getFetchOptions()
+    expect(body.options.pdf_variant).toBeUndefined()
+    expect(body.options.pdf_tags).toBeUndefined()
+  })
+
+  it('colorMode=cmyk takes precedence over accessibility for pdf_variant', async () => {
+    useExportStore.getState().setEnableAccessibility(true)
+    useExportStore.getState().setColorMode('cmyk')
+    await useExportStore.getState().exportPdf('<p>test</p>', '')
+
+    const body = getFetchOptions()
+    expect(body.options.pdf_variant).toBe('pdf/x-4')
+    expect(body.options.pdf_tags).toBe(true)
+  })
+})

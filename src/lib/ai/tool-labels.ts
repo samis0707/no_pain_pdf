@@ -13,4 +13,5 @@ export const TOOL_LABELS_DE: Record<string, string> = {
   update_data: 'Aktualisiere Daten...',
   get_helpers: 'Lade Helfer...',
   update_export_settings: 'Aktualisiere Export-Einstellungen...',
+  export_pdf: 'Generiere PDF...',
 }

@@ -299,6 +299,29 @@ export async function updateExportSettings(
   return { bleed: merged.bleed ?? 0, cropMarks: merged.cropMarks ?? false, colorMode: merged.colorMode ?? 'rgb' }
 }
 
+export async function generatePdf(
+  itemId: string,
+): Promise<{ success: boolean; itemName: string; exportSettings: { bleed: number; cropMarks: boolean; colorMode: string } }> {
+  const id = parsePrintItemId(itemId)
+  const item = await prisma.printItem.findUnique({ where: { id } })
+  if (!item) return { success: false, itemName: '', exportSettings: { bleed: 0, cropMarks: false, colorMode: 'rgb' } }
+
+  const exportSettings: { bleed?: number; cropMarks?: boolean; colorMode?: string } = (() => {
+    try { return JSON.parse(item.exportSettings ?? '{}') }
+    catch { return {} }
+  })()
+
+  return {
+    success: true,
+    itemName: item.name,
+    exportSettings: {
+      bleed: exportSettings.bleed ?? 0,
+      cropMarks: exportSettings.cropMarks ?? false,
+      colorMode: exportSettings.colorMode ?? 'rgb',
+    },
+  }
+}
+
 export async function getHelpers(
   itemId?: string,
 ): Promise<{

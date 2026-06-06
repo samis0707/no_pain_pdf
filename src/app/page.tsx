@@ -10,6 +10,7 @@ import ChatSidebar from '@/components/Chat/ChatSidebar'
 import DebugBar from '@/components/DebugBar/DebugBar'
 import { useTemplateStore } from '@/stores/templateStore'
 import { useChatStore } from '@/stores/chatStore'
+import { useExportStore } from '@/stores/exportStore'
 
 type Tab = 'upload' | 'design' | 'export'
 
@@ -23,6 +24,10 @@ export default function EditorPage() {
   const chatSendMessage = useChatStore((s) => s.sendMessage)
   const chatClearMessages = useChatStore((s) => s.clearMessages)
   const chatSetItemId = useChatStore((s) => s.setItemId)
+  const exportPdf = useExportStore((s) => s.exportPdf)
+  const isExporting = useExportStore((s) => s.isExporting)
+  const templateHtml = useTemplateStore((s) => s.html)
+  const templateCss = useTemplateStore((s) => s.css)
 
   useEffect(() => {
     if (activeTab === 'design') {
@@ -89,6 +94,8 @@ export default function EditorPage() {
               error={chatError}
               onSend={chatSendMessage}
               onClear={chatClearMessages}
+              onExportPdf={() => exportPdf(templateHtml, templateCss)}
+              isExporting={isExporting}
             />
           </div>
         )}

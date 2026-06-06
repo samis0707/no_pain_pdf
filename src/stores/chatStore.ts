@@ -147,6 +147,10 @@ export const useChatStore = create<ChatState>()((set, get) => ({
             if (colorMode !== undefined) {
               useExportStore.getState().setColorMode(colorMode)
             }
+          } else if (event.data.name === 'export_pdf') {
+            const templateHtml = useTemplateStore.getState().html
+            const templateCss = useTemplateStore.getState().css
+            useExportStore.getState().exportPdf(templateHtml, templateCss)
           } else if (event.data.name === 'register_helper') {
             const currentMisc = useTemplateStore.getState().miscText
             let parsed: Record<string, unknown> = {}

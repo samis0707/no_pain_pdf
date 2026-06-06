@@ -12,6 +12,8 @@ interface ChatSidebarProps {
   error: string | null
   onSend: (content: string) => void
   onClear: () => void
+  onExportPdf?: () => void
+  isExporting?: boolean
 }
 
 function enrichErrorMessage(msg: string): string {
@@ -37,7 +39,7 @@ function enrichErrorMessage(msg: string): string {
   return msg
 }
 
-export default function ChatSidebar({ messages, isStreaming, error, onSend, onClear }: ChatSidebarProps) {
+export default function ChatSidebar({ messages, isStreaming, error, onSend, onClear, onExportPdf, isExporting }: ChatSidebarProps) {
   const [width, setWidth] = useState(380)
   const [isResizing, setIsResizing] = useState(false)
 
@@ -72,6 +74,17 @@ export default function ChatSidebar({ messages, isStreaming, error, onSend, onCl
       <div className="flex items-center justify-between px-4 py-3 border-b bg-zinc-50 shrink-0">
         <h2 className="text-sm font-semibold text-zinc-800">AI Chat</h2>
         <div className="flex items-center gap-2">
+          {onExportPdf && !isStreaming && (
+            <button
+              data-testid="export-pdf-button"
+              onClick={onExportPdf}
+              disabled={isExporting}
+              className="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-green-300 disabled:text-green-100 rounded-md transition-colors"
+              type="button"
+            >
+              {isExporting ? 'Generating...' : 'Export PDF'}
+            </button>
+          )}
           <button
             data-testid="new-chat-button"
             onClick={onClear}
