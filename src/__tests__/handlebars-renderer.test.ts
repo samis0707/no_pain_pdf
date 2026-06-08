@@ -15,7 +15,7 @@ describe('renderTemplate', () => {
 
     it('contains exactly one <html> tag', () => {
       const result = renderTemplate('<h1>{{title}}</h1>', '', { title: 'Hello' })
-      const matches = result.match(/<html>/g)
+      const matches = result.match(/<html\b[^>]*>/g)
       expect(matches).toHaveLength(1)
     })
 
@@ -47,7 +47,7 @@ describe('renderTemplate', () => {
 
     it('does not produce nested <html> tags', () => {
       const result = renderTemplate(fullDoc, '', { title: 'Hello', css: '' })
-      const matches = result.match(/<html>/g)
+      const matches = result.match(/<html\b[^>]*>/g)
       expect(matches).toHaveLength(1)
     })
 
@@ -117,7 +117,7 @@ describe('renderTemplate', () => {
     it('handles empty html string gracefully', () => {
       const result = renderTemplate('', '', {})
       expect(result).toContain('<!DOCTYPE html>')
-      expect(result).toContain('<html>')
+      expect(result).toMatch(/<html\b/)
       expect(result).toContain('<body>')
     })
   })
