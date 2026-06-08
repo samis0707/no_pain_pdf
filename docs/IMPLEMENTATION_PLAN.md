@@ -236,17 +236,24 @@ The output quality that makes this useful for real print shops.
      - Ghostscript (port 3002)
    - `lib/s3.ts` — S3 client for MinIO
 
-3. **CSS Paged Media templates** (1h)
-   - @page rules for A4, custom sizes
-   - Bleed and crop marks
-   - Running headers/footers
-   - Named pages for different sections
-   - CMYK colors with `device-cmyk()`
+3. **CSS Paged Media templates + dynamic @page from PageFormat** (~2h)
+   - `src/utils/pagedCss.ts` — `buildPagedCss(pageFormat, bleed?, cropMarks?)` utility generating `@page { size, bleed, marks }` CSS
+     - Refactor PreviewPanel and buildPreviewDocument to use this shared utility
+     - Inject generated @page CSS into the export pipeline in exportStore
+   - ExportPanel: add bleed slider (0–5mm), crop marks toggle, color mode selector (RGB/CMYK)
+   - exportStore: new fields `bleed`, `cropMarks`, `colorMode`; `exportPdf()` builds full CSS via `buildPagedCss()` before sending to WeasyPrint
+   - CMYK: pass `pdf_variant: "pdf/x-4"` in WeasyPrint options when colorMode=CMYK; embed ICC profile via `@color-profile` in generated CSS
+   - System prompt: inject CSS Paged Media knowledge (`@page`, `bleed`, `marks`, `device-cmyk()`, running elements, named pages) so AI can generate print-ready CSS
+   - **Note:** bleed/crop marks stored inline in `exportSettings` JSON on `PrintItem` (not on `PageFormat` — PageFormat defines dimensions only)
+   - **Commits:** pagedCss utility → ExportPanel controls → CMYK pipeline → system prompt
 
-4. **Export from chat** (1.5h)
-   - AI can configure export settings via `update_template(exportSettings: {...})`
+4. **Export from chat** (~1.5h)
+   - AI can set page format (via `update_page_format`), bleed, crop marks, color mode via extended tools
+   - System prompt already includes current page format + available formats (from Epic 2)
+   - Add bleed/crop marks/colorMode to system prompt context
    - "Generate PDF" button in chat
-   - `POST /api/pdf/generate` proxies to WeasyPrint → returns PDF
+   - `POST /api/pdf/generate` proxies to WeasyPrint with @page CSS generated from PageFormat + export settings
+   - Ghostscript post-processing for strict PDF/X-1a compliance (optional, via `/api/cmyk/convert`)
    - PDF/UA accessibility tagging (option, not default for print flyers)
 
 5. **Upgrade multi-page preview with WeasyPrint page images** (1.5h)
@@ -262,12 +269,112 @@ The output quality that makes this useful for real print shops.
 
 ### Acceptance criteria
 - [ ] Export an A4 PDF with 3mm bleed and crop marks
-- [ ] PDF opens correctly in Acrobat/Preview
+- [ ] Export a CMYK PDF/X-4 PDF with embedded ICC profile
+- [ ] Preview matches export @page size (both driven from same PageFormat entity)
+- [ ] PDF opens correctly in Acrobat/Preflight without DeviceRGB warnings
 - [ ] Ask AI "Export as A4 CMYK with 3mm bleed" → settings configured → button appears → download works
 
 ---
 
-## Epic 4: Multi-User & Projects (~4h)
+## Epic 3a: Multi-Page Preview, CSS Consistency & Accessibility (~8h)
+
+**User value:** "Preview matches the exported PDF exactly. Multi-page documents show all pages. Accessible PDFs for EU compliance."
+
+The preview currently hardcodes `@page { margin: 0 }` while the export uses `buildPagedCss()` with bleed/crop marks. This causes a CSS mismatch — content fits on page 1 in the preview but overflows to page 2 in the export, bleed/crop marks are invisible in preview, and the user can only see the first page of multi-page documents.
+
+This epic fixes all of that and adds PDF/UA accessibility (EU standard) support.
+
+### Tasks
+
+**1. Fix preview/export CSS mismatch** (~2h)
+- **ROOT CAUSE:** `PreviewPanel.tsx:41-43` injects hardcoded `@page { size: ...; margin: 0 }` which overrides the template's actual CSS. Export uses `buildPagedCss(widthMm, heightMm, bleed, cropMarks)` which respects template CSS.
+- **Fix:** `PreviewPanel` calls `buildPagedCss()` with the same dimensions, bleed, and cropMarks as the export. Remove hardcoded `@page` injection. Import bleed/cropMarks from `useExportStore`.
+- Inject bleed-area visual indicator (a transparent red overlay extending `bleed` mm beyond the trim box) so the user sees where content will be clipped.
+- Inject crop-mark visual indicators (corner lines at trim edges) when `cropMarks` is enabled.
+- **Result:** Preview shows the exact same layout as the exported PDF. The immediate impact: content no longer appears on page 1 in preview but page 2 in export.
+- **Commits:** fix-css-mismatch → bleed-visual → crop-mark-visual
+
+**2. Hybrid multi-page preview — WeasyPrint-backed** (~3h)
+- **Current:** Preview renders a single page via client-side Handlebars in an `<iframe>`. Multi-page documents (`{{#each rows}}`) show only page 1.
+- **Target:** Hybrid approach — instant client-side preview of page 1 (now with correct CSS from task 1) + async WeasyPrint-rendered multi-page preview.
+- **New API route:** `POST /api/preview` — accepts `{ html, css, options }`, proxies to WeasyPrint `/generate`, returns PDF bytes (identical pipeline to `/api/pdf/generate`).
+- **Client-side:** Install `pdfjs-dist`. `PreviewPanel` calls `/api/preview` on template changes (debounced 500ms). PDF.js renders each page as a `<canvas>`. Page navigation via prev/next buttons with page counter (`"Page 3 of 12"`).
+- **New component:** `src/components/Preview/PageViewer.tsx` — PDF.js page renderer with:
+  - `canvas` per page rendered at device-pixel ratio for crisp display
+  - Prev/next navigation arrows
+  - Page number input + total count
+  - Loading spinner while WeasyPrint renders
+  - Error state with retry button
+- **State:** `previewStore` extended with `totalPages`, `currentPage`, `setPage()`, `pdfBlob` (cached PDF bytes).
+- **Edge cases:** Empty template → show "No template". Compilation error → show error (client-side). WeasyPrint timeout → fall back to client-side preview with "Inaccurate preview" badge. Rapid edits → debounce prevents request flood.
+- **Commits:** preview-api-route → pdfjs-integration → page-viewer-component → state-management
+
+**3. Accessibility toggle in ExportPanel UI** (~0.5h)
+- `exportStore.enableAccessibility` already exists — no store changes needed.
+- Add checkbox to `ExportPanel.tsx` below the color mode selector:
+  - Label: "PDF/UA accessibility tagging"
+  - Wires to `useExportStore().setEnableAccessibility()`
+  - When checked, a note appears: "Generates EU-standard accessible PDF (ISO 14289-1 / PDF/UA)"
+- **Commits:** accessibility-ui-toggle
+
+**4. PDF/UA compliance improvements** (~1.5h)
+- Ensure `lang` attribute is set on `<html>` in generated documents (both preview and export):
+  - `handlebarsRenderer.ts`: add `<html lang="en">` (or a configurable lang) instead of `<html>`
+  - `previewDocument.ts`: same treatment
+  - Check if template already has `lang` — if so, preserve it; if not, default to `"en"`
+- Add `<title>` metadata to generated documents for PDF metadata
+- When `enableAccessibility=true`, inject accessible structure hints:
+  - Ensure proper document language
+  - WeasyPrint's `pdf_tags=True` generates tagged PDF structure automatically
+- **Commits:** lang-attribute → title-metadata → accessible-structure
+
+**5. AI system prompt: accessibility knowledge** (~1h)
+- Add section to `system-prompt.ts`: "## PDF Accessibility (PDF/UA)"
+- Content injected into the system prompt:
+  - PDF/UA (ISO 14289-1) is the EU-standard for accessible PDFs
+  - The `update_export_settings` tool supports `enableAccessibility: true`
+  - Template guidelines for accessible output:
+    - Use semantic HTML: `<h1>`-`<h6>` for headings, `<p>` for paragraphs, `<ul>`/`<ol>` for lists, `<table>`/`<th>` for data tables
+    - Always include `lang` attribute on `<html>` (e.g., `<html lang="de">`)
+    - Always include `<title>` in `<head>`
+    - Add `alt` text to all `<img>` elements
+    - Maintain proper heading hierarchy (h1 → h2, never skip levels)
+    - Ensure sufficient color contrast (WCAG 2.1 AA: 4.5:1 for normal text)
+    - Don't convey information through color alone
+  - When generating templates or suggesting edits, the AI should follow these practices by default (not only when accessibility is toggled on)
+- **Commits:** system-prompt-accessibility
+
+**6. veraPDF validation (manual/CI)** (~0.5h)
+- Script: `scripts/validate-pdfua.sh` — downloads veraPDF if not present, validates a PDF, exits with 0/1
+- Documentation in `docs/PDFUA_VALIDATION.md`
+
+### Test coverage
+
+**RED tests (failing before implementation):**
+- **preview-css-consistency.test.ts** — Preview uses `buildPagedCss()` not hardcoded `margin:0`. Bleed/crop marks from exportStore reflected in preview. Bleed area indicator rendered. Crop marks rendered.
+- **multi-page-preview-api.test.ts** — `/api/preview` route exists, returns PDF with correct Content-Type, returns >1 page for multi-row data, rejects missing html with 400.
+- **accessibility-toggle-ui.test.tsx** — ExportPanel renders a PDF/UA checkbox, toggling updates store state, checkbox reflects store value.
+- **pdf-ua-compliance.test.ts** — `enableAccessibility=true` sets `pdf_tags: true` and `pdf_variant: 'pdf/ua-1'`. Rendered HTML has `lang` attribute. Rendered HTML has `<title>`. `enableAccessibility=false` sends neither option. lang defaults to "en" when not present in template.
+- **system-prompt-accessibility.test.ts** — System prompt includes PDF/UA section, mentions `lang` attribute, mentions `enableAccessibility: true`, mentions semantic HTML.
+
+**Existing tests that must remain GREEN:**
+- All 50+ existing Vitest tests (`npm run test`)
+- Python pytest suite (`cd pdf-service && pytest -v`)
+
+### Acceptance criteria
+- [ ] Preview shows same layout as export (same CSS `@page` rules)
+- [ ] Preview shows bleed area (red overlay beyond trim) when bleed > 0
+- [ ] Preview shows crop mark corner indicators when enabled
+- [ ] Multi-page document shows page navigation (prev/next, page 3 of 12)
+- [ ] Template with `{{#each rows}}` renders all pages via WeasyPrint
+- [ ] ExportPanel has "PDF/UA accessibility tagging" checkbox
+- [ ] Checking it sends `pdf_tags: true` and `pdf_variant: 'pdf/ua-1'` to WeasyPrint
+- [ ] Generated accessible PDF has `lang` attribute and `<title>` metadata
+- [ ] PDF passes veraPDF PDF/UA-1 validation (machine-checkable rules)
+- [ ] AI system prompt includes accessibility guidelines
+- [ ] AI-generated templates use semantic HTML by default
+
+---
 
 **User value:** "Log in, save my projects, come back later."
 
