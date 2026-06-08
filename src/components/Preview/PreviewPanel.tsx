@@ -6,6 +6,8 @@ import { useTemplateStore } from '@/stores/templateStore'
 import { useDataStore } from '@/stores/dataStore'
 import { calculateScale } from '@/utils/previewScale'
 import { getPageFormatDimensions } from '@/utils/pageFormat'
+import { buildPagedCss } from '@/utils/pagedCss'
+import { useExportStore } from '@/stores/exportStore'
 import { applyFieldMapping } from '@/utils/applyMapping'
 
 const MM_TO_PX = 3.7795
@@ -15,6 +17,7 @@ export default function PreviewPanel() {
   const [scale, setScale] = useState(1)
   const { html, css, miscText, pageFormat } = useTemplateStore()
   const { rows, mapping } = useDataStore()
+  const { bleed, cropMarks } = useExportStore()
   const { compiledHtml, isCompiling, compileError, compile } = usePreviewStore()
 
   const fmt = pageFormat
@@ -41,10 +44,10 @@ export default function PreviewPanel() {
     return () => resizeObserver.disconnect()
   }, [fmt.widthMm, fmt.heightMm])
 
-  const pageCss = `@page { size: ${fmt.widthMm}mm ${fmt.heightMm}mm; margin: 0; }
-html, body { margin: 0; overflow: hidden; width: 100%; height: 100%; }`
+  const pageCss = buildPagedCss(fmt.widthMm, fmt.heightMm, bleed, cropMarks)
+  const previewOverflowCss = 'html, body { margin: 0; overflow: hidden; width: 100%; height: 100%; }'
   const displayHtml = compiledHtml
-    ? compiledHtml.replace('<style>', `<style>${pageCss}\n`)
+    ? compiledHtml.replace('<style>', `<style>${pageCss}\n${previewOverflowCss}\n`)
     : ''
 
   const pageWidthPx = fmt.widthMm * MM_TO_PX
