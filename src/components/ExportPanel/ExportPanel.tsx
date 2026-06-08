@@ -21,7 +21,7 @@ const marginOptions = [
 ]
 
 export default function ExportPanel() {
-  const { pageSize, orientation, margins, bleed, cropMarks, colorMode, isExporting, error, setPageSize, setOrientation, setMargins, setBleed, setCropMarks, setColorMode, exportPdf } = useExportStore()
+  const { pageSize, orientation, margins, bleed, cropMarks, colorMode, enableAccessibility, isExporting, error, setPageSize, setOrientation, setMargins, setBleed, setCropMarks, setColorMode, setEnableAccessibility, exportPdf } = useExportStore()
   const { html, css } = useTemplateStore()
 
   const handleDownload = () => {
@@ -110,6 +110,21 @@ export default function ExportPanel() {
           <option value="rgb">RGB</option>
           <option value="cmyk">CMYK (PDF/X-4)</option>
         </select>
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={enableAccessibility}
+            onChange={(e) => setEnableAccessibility(e.target.checked)}
+            className="rounded"
+          />
+          PDF/UA accessibility tagging
+        </label>
+        <p className="text-xs text-zinc-500 mt-1">
+          Generates EU-standard accessible PDF (ISO 14289-1 / PDF/UA)
+        </p>
       </div>
 
       {error && (
