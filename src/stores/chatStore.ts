@@ -13,6 +13,7 @@ interface ChatState {
   messages: ChatMessage[]
   isStreaming: boolean
   error: string | null
+  isLoadingHistory: boolean
 
   setItemId: (id: string) => void
   addMessage: (message: ChatMessage) => void
@@ -20,7 +21,8 @@ interface ChatState {
   setStreaming: (streaming: boolean) => void
   setError: (error: string | null) => void
   sendMessage: (content: string) => Promise<void>
-  clearMessages: () => void
+  clearMessages: () => Promise<void>
+  loadHistory: () => Promise<void>
 }
 
 export const useChatStore = create<ChatState>()((set, get) => ({
@@ -28,6 +30,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   messages: [],
   isStreaming: false,
   error: null,
+  isLoadingHistory: false,
 
   setItemId: (id) => {
     set({ itemId: id, error: null })
@@ -49,8 +52,34 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     set({ error })
   },
 
-  clearMessages: () => {
+  clearMessages: async () => {
+    const { itemId } = get()
+    if (itemId) {
+      try {
+        await fetch(`/api/ai/chat?itemId=${itemId}`, { method: 'DELETE' })
+      } catch (e) {
+        console.warn('⚠️ [Chat] Failed to clear history on server:', e)
+      }
+    }
     set({ messages: [], error: null })
+  },
+
+  loadHistory: async () => {
+    const { itemId } = get()
+    if (!itemId) return
+
+    set({ isLoadingHistory: true })
+    try {
+      const res = await fetch(`/api/ai/chat?itemId=${itemId}`)
+      if (res.ok) {
+        const data = await res.json()
+        set({ messages: data.messages ?? [] })
+      }
+    } catch (e) {
+      console.warn('⚠️ [Chat] Failed to load history:', e)
+    } finally {
+      set({ isLoadingHistory: false })
+    }
   },
 
   sendMessage: async (content) => {
