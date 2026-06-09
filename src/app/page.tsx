@@ -24,6 +24,7 @@ export default function EditorPage() {
   const chatSendMessage = useChatStore((s) => s.sendMessage)
   const chatClearMessages = useChatStore((s) => s.clearMessages)
   const chatSetItemId = useChatStore((s) => s.setItemId)
+  const chatLoadHistory = useChatStore((s) => s.loadHistory)
   const exportPdf = useExportStore((s) => s.exportPdf)
   const isExporting = useExportStore((s) => s.isExporting)
   const templateHtml = useTemplateStore((s) => s.html)
@@ -33,8 +34,9 @@ export default function EditorPage() {
     if (activeTab === 'design') {
       setItemId(1)
       chatSetItemId('1')
+      chatLoadHistory()
     }
-  }, [activeTab, setItemId, chatSetItemId])
+  }, [activeTab, setItemId, chatSetItemId, chatLoadHistory])
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'upload', label: 'Upload' },

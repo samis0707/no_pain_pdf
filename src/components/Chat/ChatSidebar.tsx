@@ -88,7 +88,12 @@ export default function ChatSidebar({ messages, isStreaming, error, onSend, onCl
           <button
             data-testid="new-chat-button"
             onClick={onClear}
-            className="px-3 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-800 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
+            disabled={isStreaming}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              isStreaming
+                ? 'text-zinc-300 bg-zinc-100 border border-zinc-200 cursor-not-allowed'
+                : 'text-zinc-600 hover:text-zinc-800 bg-white border border-zinc-300 hover:bg-zinc-50'
+            }`}
             type="button"
           >
             New Chat
