@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { loadMessages } from '@/lib/ai/conversation'
+import { loadMessages, clearConversation } from '@/lib/ai/conversation'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import { getTemplate, getDataInfo, getHelpers, getAssets } from '@/lib/ai/tools'
 import { handleChatRequest } from '@/lib/ai/chat-route'
@@ -82,5 +82,39 @@ export async function POST(request: NextRequest) {
       console.error('❌ [API] Stack:', error.stack)
     }
     return Response.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const itemId = searchParams.get('itemId')
+
+    if (!itemId) {
+      return Response.json({ error: 'itemId is required' }, { status: 400 })
+    }
+
+    const messages = await loadMessages(itemId)
+    return Response.json({ messages })
+  } catch (error) {
+    console.error('❌ [API] GET /api/ai/chat error:', error)
+    return Response.json({ messages: [] }, { status: 200 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const itemId = searchParams.get('itemId')
+
+    if (!itemId) {
+      return Response.json({ error: 'itemId is required' }, { status: 400 })
+    }
+
+    await clearConversation(itemId)
+    return Response.json({ success: true })
+  } catch (error) {
+    console.error('❌ [API] DELETE /api/ai/chat error:', error)
+    return Response.json({ success: true }, { status: 200 })
   }
 }
