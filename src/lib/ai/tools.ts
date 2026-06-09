@@ -157,9 +157,20 @@ export async function renderPreview(_itemId: string): Promise<{ screenshot: stri
 }
 
 export async function getAssets(
-  _itemId: string,
-): Promise<{ assets: Array<{ filename: string; url: string }> }> {
-  return { assets: [] }
+  itemId: string,
+): Promise<{ assets: Array<{ filename: string; url: string; mimeType: string }> }> {
+  const id = parsePrintItemId(itemId)
+  const assets = await prisma.asset.findMany({
+    where: { printItemId: id },
+    orderBy: { createdAt: 'desc' },
+  })
+  return {
+    assets: assets.map((a) => ({
+      filename: a.filename,
+      url: `/api/assets/file/${a.filename.split('/').map(encodeURIComponent).join('/')}`,
+      mimeType: a.mimeType,
+    })),
+  }
 }
 
 export async function registerHelper(
