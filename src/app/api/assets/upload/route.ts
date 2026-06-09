@@ -1,11 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
-
-const uploadDir = path.join(process.cwd(), 'public', 'uploads')
-
-mkdir(uploadDir, { recursive: true }).catch(() => {})
+import { uploadFile } from '@/lib/s3'
 
 export async function POST(request: NextRequest) {
   let formData: FormData
@@ -27,16 +22,25 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const ext = path.extname(file.name)
-  const uniqueFilename = `${Date.now()}-${file.name}`
+  if (!file.type.startsWith('image/')) {
+    return new Response(JSON.stringify({ error: 'Only image files are allowed' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const printItemIdRaw = formData.get('printItemId')
+  const printItemId = printItemIdRaw ? parseInt(printItemIdRaw as string, 10) : undefined
+
+  const key = `assets/${printItemId ?? 0}/${Date.now()}-${file.name}`
 
   const arrayBuffer = await file.arrayBuffer()
   const buffer = Buffer.from(arrayBuffer)
 
   try {
-    await writeFile(path.join(uploadDir, uniqueFilename), buffer)
+    await uploadFile(key, buffer, file.type)
   } catch {
-    return new Response(JSON.stringify({ error: 'Failed to save file' }), {
+    return new Response(JSON.stringify({ error: 'Failed to upload file' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     })
@@ -44,10 +48,11 @@ export async function POST(request: NextRequest) {
 
   const asset = await prisma.asset.create({
     data: {
-      filename: uniqueFilename,
+      filename: key,
       originalName: file.name,
       mimeType: file.type,
       fileSize: buffer.length,
+      printItemId: printItemId ?? null,
       userId: 1,
     },
   })
@@ -59,7 +64,7 @@ export async function POST(request: NextRequest) {
       originalName: asset.originalName,
       mimeType: asset.mimeType,
       fileSize: asset.fileSize,
-      url: `/api/assets/file/${asset.filename}`,
+      url: `/api/assets/file/${key.split('/').map(encodeURIComponent).join('/')}`,
     }),
     {
       status: 201,
