@@ -66,8 +66,7 @@ const TOOL_DEFINITIONS = [
       description: 'Get the current template HTML, CSS, and name',
       parameters: {
         type: 'object',
-        properties: { itemId: { type: 'string', description: 'The item ID' } },
-        required: ['itemId'],
+        properties: {},
       },
     },
   },
@@ -79,11 +78,9 @@ const TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: {
-          itemId: { type: 'string', description: 'The item ID' },
           html: { type: 'string', description: 'HTML content' },
           css: { type: 'string', description: 'CSS content' },
         },
-        required: ['itemId'],
       },
     },
   },
@@ -94,8 +91,7 @@ const TOOL_DEFINITIONS = [
       description: 'Get DataSet columns, row count, and sample rows',
       parameters: {
         type: 'object',
-        properties: { itemId: { type: 'string', description: 'The item ID' } },
-        required: ['itemId'],
+        properties: {},
       },
     },
   },
@@ -106,8 +102,7 @@ const TOOL_DEFINITIONS = [
       description: 'Deep analysis of dataset: duplicates, nulls, and suggestions',
       parameters: {
         type: 'object',
-        properties: { itemId: { type: 'string', description: 'The item ID' } },
-        required: ['itemId'],
+        properties: {},
       },
     },
   },
@@ -118,8 +113,7 @@ const TOOL_DEFINITIONS = [
       description: 'Render the template with current data and return a base64 screenshot',
       parameters: {
         type: 'object',
-        properties: { itemId: { type: 'string', description: 'The item ID' } },
-        required: ['itemId'],
+        properties: {},
       },
     },
   },
@@ -130,8 +124,7 @@ const TOOL_DEFINITIONS = [
       description: 'List uploaded images for this item',
       parameters: {
         type: 'object',
-        properties: { itemId: { type: 'string', description: 'The item ID' } },
-        required: ['itemId'],
+        properties: {},
       },
     },
   },
@@ -143,12 +136,11 @@ const TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: {
-          itemId: { type: 'string', description: 'The item ID' },
           name: { type: 'string', description: 'Helper name' },
           params: { type: 'array', items: { type: 'string' }, description: 'Parameter names' },
           body: { type: 'string', description: 'Function body' },
         },
-        required: ['itemId', 'name', 'params', 'body'],
+        required: ['name', 'params', 'body'],
       },
     },
   },
@@ -159,8 +151,7 @@ const TOOL_DEFINITIONS = [
       description: 'Return the full dataset with columns and all rows',
       parameters: {
         type: 'object',
-        properties: { itemId: { type: 'string', description: 'The item ID' } },
-        required: ['itemId'],
+        properties: {},
       },
     },
   },
@@ -172,14 +163,13 @@ const TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: {
-          itemId: { type: 'string', description: 'The item ID' },
           rows: {
             type: 'array',
             items: { type: 'object' },
             description: 'Array of row objects with consistent keys',
           },
         },
-        required: ['itemId', 'rows'],
+        required: ['rows'],
       },
     },
   },
@@ -190,7 +180,7 @@ const TOOL_DEFINITIONS = [
       description: 'List all available Handlebars helpers with signatures and descriptions',
       parameters: {
         type: 'object',
-        properties: { itemId: { type: 'string', description: 'The item ID' } },
+        properties: {},
       },
     },
   },
@@ -202,10 +192,9 @@ const TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: {
-          itemId: { type: 'string', description: 'The item ID' },
           html: { type: 'string', description: 'The new HTML content (Handlebars syntax)' },
         },
-        required: ['itemId', 'html'],
+        required: ['html'],
       },
     },
   },
@@ -216,8 +205,7 @@ const TOOL_DEFINITIONS = [
       description: 'List all available page formats with their dimensions and the currently selected format for this item',
       parameters: {
         type: 'object',
-        properties: { itemId: { type: 'string', description: 'The item ID' } },
-        required: ['itemId'],
+        properties: {},
       },
     },
   },
@@ -229,11 +217,9 @@ const TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: {
-          itemId: { type: 'string', description: 'The item ID' },
           pageFormatId: { type: 'number', description: 'The ID of the page format to switch to (omit or set null to keep current)' },
           css: { type: 'string', description: 'New CSS content (omit to keep current CSS)' },
         },
-        required: ['itemId'],
       },
     },
   },
@@ -245,12 +231,10 @@ const TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: {
-          itemId: { type: 'string', description: 'The item ID' },
           bleed: { type: 'number', description: 'Bleed in mm (0-5)' },
           cropMarks: { type: 'boolean', description: 'Whether to include printer crop marks' },
           colorMode: { type: 'string', enum: ['rgb', 'cmyk'], description: 'Color mode for the exported PDF' },
         },
-        required: ['itemId'],
       },
     },
   },
@@ -262,10 +246,8 @@ const TOOL_DEFINITIONS = [
       parameters: {
         type: 'object',
         properties: {
-          itemId: { type: 'string', description: 'The item ID' },
           filename: { type: 'string', description: 'Optional custom filename for the PDF (e.g. flyer.pdf)' },
         },
-        required: ['itemId'],
       },
     },
   },

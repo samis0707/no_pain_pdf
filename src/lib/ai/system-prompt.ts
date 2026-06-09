@@ -20,7 +20,7 @@ interface SystemPromptContext {
   dataColumns: string[]
   sampleRows: Record<string, unknown>[]
   rowCount: number
-  assets: Array<{ filename: string; url: string }>
+  assets: Array<{ filename: string; url: string; mimeType?: string }>
   pageFormat: { id: number; name: string; widthMm: number; heightMm: number; category: string; isPreset: boolean } | null
   availablePageFormats: Array<{ id: number; name: string; widthMm: number; heightMm: number; category: string; isPreset: boolean }>
   bleed?: number
@@ -98,6 +98,24 @@ export function buildSystemPrompt(context: SystemPromptContext): string {
   lines.push(JSON.stringify(context.sampleRows, null, 2))
   lines.push('```')
   lines.push('')
+  lines.push('### Handlebars rendering context')
+  lines.push('')
+  lines.push('When the template is rendered, the data is assembled as follows:')
+  lines.push('- The fields of the **first row** are available as **top-level variables**: `{{column_name}}`')
+  lines.push('- **All rows** are available as the `rows` array: `{{#each rows}}...{{/each}}`')
+  lines.push('')
+  lines.push('So to iterate over all data rows, use `{{#each rows}}`. Inside the loop, each row\'s fields are accessible directly: `{{field_name}}`.')
+  lines.push('')
+  lines.push('Example for a dataset with columns "name" and "date":')
+  lines.push('```handlebars')
+  lines.push('{{#each rows}}')
+  lines.push('  <div class="card">')
+  lines.push('    <h2>{{name}}</h2>')
+  lines.push('    <p>{{date}}</p>')
+  lines.push('  </div>')
+  lines.push('{{/each}}')
+  lines.push('```')
+  lines.push('')
 
   lines.push('## Available Handlebars Helpers')
   lines.push('')
@@ -129,11 +147,27 @@ export function buildSystemPrompt(context: SystemPromptContext): string {
     lines.push('## Available Assets')
     lines.push('')
     for (const asset of context.assets) {
-      lines.push(`- ${asset.filename}: ${asset.url}`)
+      const typeInfo = asset.mimeType ? ` (${asset.mimeType})` : ''
+      lines.push(`- ${asset.filename}${typeInfo}: ${asset.url}`)
     }
+    lines.push('')
+    lines.push('You can reference these assets in your template using standard HTML:')
+    lines.push('- `<img src="{{assetUrl}}" alt="description">` — renders the image in the PDF')
+    lines.push('- Use inline CSS or class-based sizing to control dimensions')
     lines.push('')
   }
 
+  lines.push('## Vision & Document Analysis')
+  lines.push('')
+  lines.push('When images or document page images are attached to a chat message:')
+  lines.push('')
+  lines.push('- **Analyze the layout**: identify columns, headers, footers, margins, and grid structure')
+  lines.push('- **Extract colors**: note the primary color palette, accent colors, and background colors')
+  lines.push('- **Identify typography**: describe font styles, sizes, weights, and hierarchy')
+  lines.push('- **Analyze spacing**: measure padding, margins, and alignment patterns')
+  lines.push('- **For attached PDFs**: regenerate the document as an editable Handlebars template that preserves the visual structure')
+  lines.push('- **Generate template HTML+CSS**: create a matching template using the `update_template` or `update_template_html` tools')
+  lines.push('')
   lines.push('## CSS Paged Media')
   lines.push('')
   lines.push('You can use CSS Paged Media features for print-ready PDF output.')
