@@ -45,8 +45,24 @@ describe('chatStore', () => {
       messages: [],
       isStreaming: false,
       error: null,
+      isLoadingHistory: false,
     })
     mockFetch.mockReset()
+    mockFetch.mockImplementation((url: string | URL | Request, options?: RequestInit) => {
+      const urlStr = url.toString()
+      const method = (options?.method as string) || 'GET'
+
+      if (method === 'GET' && urlStr.startsWith('/api/ai/chat?itemId=')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ messages: [] }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        )
+      }
+
+      return Promise.reject(new Error('Unexpected fetch call: ' + urlStr))
+    })
   })
 
   afterEach(() => {
@@ -94,13 +110,18 @@ describe('chatStore', () => {
     expect(useChatStore.getState().error).toBeNull()
   })
 
-  it('clearMessages removes all messages and error', () => {
+  it('clearMessages sends DELETE to server and clears local state', async () => {
+    useChatStore.getState().setItemId('item-1')
     useChatStore.getState().addMessage({ role: 'user', content: 'Hello' })
     useChatStore.getState().addMessage({ role: 'assistant', content: 'Hi' })
     useChatStore.getState().setError('some error')
 
-    useChatStore.getState().clearMessages()
+    mockFetch.mockResolvedValue(new Response(null, { status: 200 }))
+    await useChatStore.getState().clearMessages()
 
+    expect(mockFetch).toHaveBeenCalledWith('/api/ai/chat?itemId=item-1', {
+      method: 'DELETE',
+    })
     expect(useChatStore.getState().messages).toHaveLength(0)
     expect(useChatStore.getState().error).toBeNull()
   })
@@ -197,6 +218,78 @@ describe('chatStore', () => {
     expect(state.isStreaming).toBe(false)
   })
 
+  it('loadHistory fetches messages from GET endpoint and populates messages', async () => {
+    useChatStore.getState().setItemId('item-1')
+
+    const historyMessages: ChatMessage[] = [
+      { role: 'user', content: 'Previous question' },
+      { role: 'assistant', content: 'Previous answer' },
+    ]
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ messages: historyMessages }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    await useChatStore.getState().loadHistory()
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/ai/chat?itemId=item-1')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().messages).toEqual(historyMessages)
+    expect(useChatStore.getState().isLoadingHistory).toBe(false)
+  })
+
+  it('loadHistory handles API failure gracefully', async () => {
+    useChatStore.getState().setItemId('item-1')
+
+    mockFetch.mockRejectedValue(new Error('Network error'))
+
+    await useChatStore.getState().loadHistory()
+
+    expect(useChatStore.getState().messages).toEqual([])
+    expect(useChatStore.getState().error).toBeNull()
+    expect(useChatStore.getState().isLoadingHistory).toBe(false)
+  })
+
+  it('loadHistory does nothing when itemId is null', async () => {
+    useChatStore.getState().addMessage({ role: 'user', content: 'existing' })
+    const existingMessages = [...useChatStore.getState().messages]
+
+    await useChatStore.getState().loadHistory()
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(useChatStore.getState().messages).toEqual(existingMessages)
+  })
+
+  it('clearMessages clears local state even when DELETE fails', async () => {
+    useChatStore.getState().setItemId('item-1')
+    useChatStore.getState().addMessage({ role: 'user', content: 'Hello' })
+    useChatStore.getState().addMessage({ role: 'assistant', content: 'Hi' })
+    useChatStore.getState().setError('some error')
+
+    mockFetch.mockRejectedValue(new Error('Network error'))
+
+    await useChatStore.getState().clearMessages()
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/ai/chat?itemId=item-1', {
+      method: 'DELETE',
+    })
+    expect(useChatStore.getState().messages).toHaveLength(0)
+    expect(useChatStore.getState().error).toBeNull()
+  })
+
+  it('clearMessages does nothing when itemId is null', async () => {
+    useChatStore.getState().addMessage({ role: 'user', content: 'Hello' })
+    useChatStore.getState().addMessage({ role: 'assistant', content: 'Hi' })
+
+    await useChatStore.getState().clearMessages()
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(useChatStore.getState().messages).toHaveLength(0)
+    expect(useChatStore.getState().error).toBeNull()
+  })
+
   describe('auto-apply flow', () => {
     beforeEach(() => {
       useTemplateStore.setState({
@@ -211,7 +304,7 @@ describe('chatStore', () => {
         version: 0,
       })
       usePreviewStore.setState({
-        compiledHtml: '',
+        compiledBody: '',
         isCompiling: false,
         compileError: null,
       })
@@ -297,8 +390,8 @@ describe('chatStore', () => {
 
       await useChatStore.getState().sendMessage('Update')
 
-      expect(usePreviewStore.getState().compiledHtml).toBeTruthy()
-      expect(usePreviewStore.getState().compiledHtml).toContain('<h1></h1>')
+      expect(usePreviewStore.getState().compiledBody).toBeTruthy()
+      expect(usePreviewStore.getState().compiledBody).toContain('<h1></h1>')
     })
 
     it('registers helpers from register_helper tool_call', async () => {

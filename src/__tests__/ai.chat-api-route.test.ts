@@ -4,10 +4,12 @@ import { NextRequest } from 'next/server'
 const mockLoadMessages = vi.fn()
 const mockSaveMessages = vi.fn()
 const mockHandleChatRequest = vi.fn()
+const mockClearConversation = vi.fn()
 
 vi.mock('@/lib/ai/conversation', () => ({
   loadMessages: (...args: unknown[]) => mockLoadMessages(...args),
   saveMessages: (...args: unknown[]) => mockSaveMessages(...args),
+  clearConversation: (...args: unknown[]) => mockClearConversation(...args),
 }))
 
 vi.mock('@/lib/ai/chat-route', () => ({
@@ -34,7 +36,7 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-const { POST } = await import('@/app/api/ai/chat/route')
+const { POST, GET, DELETE } = await import('@/app/api/ai/chat/route')
 
 function createMockStream(): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder()
@@ -154,5 +156,85 @@ describe('POST /api/ai/chat', () => {
         { role: 'user', content: 'Hello' },
       ]),
     )
+  })
+})
+
+describe('GET /api/ai/chat', () => {
+  it('returns messages for a given itemId', async () => {
+    const messages = [
+      { role: 'user', content: 'Hello' },
+      { role: 'assistant', content: 'Hi there' },
+    ]
+    mockLoadMessages.mockResolvedValue(messages)
+
+    const request = new Request('http://localhost/api/ai/chat?itemId=42')
+    const response = await GET(request)
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body).toEqual({ messages })
+  })
+
+  it('returns empty messages array for unknown itemId', async () => {
+    mockLoadMessages.mockResolvedValue([])
+
+    const request = new Request('http://localhost/api/ai/chat?itemId=999')
+    const response = await GET(request)
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body).toEqual({ messages: [] })
+  })
+
+  it('returns 400 when itemId is missing', async () => {
+    const request = new Request('http://localhost/api/ai/chat')
+    const response = await GET(request)
+
+    expect(response.status).toBe(400)
+    const body = await response.json()
+    expect(body.error).toBe('itemId is required')
+  })
+
+  it('returns 200 and empty messages when itemId is NaN', async () => {
+    const request = new Request('http://localhost/api/ai/chat?itemId=invalid')
+    const response = await GET(request)
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body).toEqual({ messages: [] })
+  })
+})
+
+describe('DELETE /api/ai/chat', () => {
+  it('clears messages for a given itemId', async () => {
+    mockClearConversation.mockResolvedValue(undefined)
+
+    const request = new Request('http://localhost/api/ai/chat?itemId=42', { method: 'DELETE' })
+    const response = await DELETE(request)
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body).toEqual({ success: true })
+    expect(mockClearConversation).toHaveBeenCalledWith('42')
+  })
+
+  it('returns 400 when itemId is missing', async () => {
+    const request = new Request('http://localhost/api/ai/chat', { method: 'DELETE' })
+    const response = await DELETE(request)
+
+    expect(response.status).toBe(400)
+    const body = await response.json()
+    expect(body.error).toBe('itemId is required')
+  })
+
+  it('returns 200 even when itemId is unknown', async () => {
+    mockClearConversation.mockResolvedValue(undefined)
+
+    const request = new Request('http://localhost/api/ai/chat?itemId=999', { method: 'DELETE' })
+    const response = await DELETE(request)
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body).toEqual({ success: true })
   })
 })
