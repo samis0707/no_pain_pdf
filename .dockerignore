@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.git/
+.env
+.env.local
+*.db
+coverage/
+__pycache__/
+*.pyc
+*.egg-info/
+pdf-service/.venv/
+docker-data/
+.gitignore
+.docker/
+service-opo

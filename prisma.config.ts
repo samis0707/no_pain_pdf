@@ -1,4 +1,11 @@
 import { defineConfig, env } from 'prisma/config'
+import { loadEnvFile } from 'process'
+
+try {
+  loadEnvFile('.env')
+} catch {
+  // .env may not exist at build time (e.g. Docker)
+}
 
 export default defineConfig({
   datasource: {
