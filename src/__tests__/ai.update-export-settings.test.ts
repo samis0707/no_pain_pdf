@@ -216,11 +216,11 @@ describe('TOOL_DEFINITIONS includes update_export_settings', () => {
     expect(def!.function.parameters.properties.colorMode.enum).toContain('cmyk')
   })
 
-  it('update_export_settings requires only itemId', () => {
+  it('update_export_settings has optional parameters (itemId injected server-side)', () => {
     const def = TOOL_DEFINITIONS.find(
       (d) => d.function && d.function.name === 'update_export_settings',
     )
-    expect(def!.function.parameters.required).toEqual(['itemId'])
+    expect(def!.function.parameters.required).toBeUndefined()
   })
 })
 

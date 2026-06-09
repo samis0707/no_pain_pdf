@@ -152,7 +152,7 @@ beforeEach(() => {
     version: 0,
   })
   usePreviewStore.setState({
-    compiledHtml: '',
+    compiledBody: '',
     isCompiling: false,
     compileError: null,
   })
@@ -292,8 +292,8 @@ describe('ChatStore sendMessage with tool calls', () => {
 
     await useChatStore.getState().sendMessage('Update template')
 
-    expect(usePreviewStore.getState().compiledHtml).toBeTruthy()
-    expect(usePreviewStore.getState().compiledHtml).toContain('<h1></h1>')
+    expect(usePreviewStore.getState().compiledBody).toBeTruthy()
+    expect(usePreviewStore.getState().compiledBody).toContain('<h1></h1>')
     expect(usePreviewStore.getState().isCompiling).toBe(false)
   })
 

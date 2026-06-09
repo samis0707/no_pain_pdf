@@ -52,11 +52,11 @@ describe('export_pdf tool definition', () => {
     expect(def!.function.description.toLowerCase()).toContain('pdf')
   })
 
-  it('export_pdf has itemId as required parameter', () => {
+  it('export_pdf has no required parameters (itemId injected server-side)', () => {
     const def = TOOL_DEFINITIONS.find(
       (d) => d.function && d.function.name === 'export_pdf',
     )
-    expect(def!.function.parameters.required).toContain('itemId')
+    expect(def!.function.parameters.required).toBeUndefined()
   })
 
   it('export_pdf has optional filename parameter', () => {

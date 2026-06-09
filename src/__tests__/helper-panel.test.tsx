@@ -18,7 +18,7 @@ beforeEach(() => {
     error: null,
     version: 0,
   })
-  usePreviewStore.setState({ isCompiling: false, compileError: null, compiledHtml: '' })
+  usePreviewStore.setState({ isCompiling: false, compileError: null, compiledBody: '' })
   helperManager.clear()
 })
 

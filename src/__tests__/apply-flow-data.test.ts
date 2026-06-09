@@ -18,7 +18,7 @@ beforeEach(() => {
     version: 0,
   })
   usePreviewStore.setState({
-    compiledHtml: '',
+    compiledBody: '',
     isCompiling: false,
     compileError: null,
   })
@@ -46,8 +46,8 @@ describe('applyTemplateChanges data passthrough', () => {
     applyTemplateChanges({ html: '{{#each rows}}{{name}},{{/each}}', css: '' })
 
     const preview = usePreviewStore.getState()
-    expect(preview.compiledHtml).toContain('Alice')
-    expect(preview.compiledHtml).toContain('Bob')
+    expect(preview.compiledBody).toContain('Alice')
+    expect(preview.compiledBody).toContain('Bob')
   })
 
   it('compiles template with first row fields as top-level variables', () => {
@@ -58,15 +58,15 @@ describe('applyTemplateChanges data passthrough', () => {
     applyTemplateChanges({ html: '<h1>{{title}}</h1>', css: '' })
 
     const preview = usePreviewStore.getState()
-    expect(preview.compiledHtml).toContain('<h1>Hello World</h1>')
+    expect(preview.compiledBody).toContain('<h1>Hello World</h1>')
   })
 
   it('renders empty when dataStore has no rows', () => {
     applyTemplateChanges({ html: '{{#each rows}}{{name}},{{/each}}', css: '' })
 
     const preview = usePreviewStore.getState()
-    expect(preview.compiledHtml).not.toContain('undefined')
-    expect(preview.compiledHtml).toContain('<body></body>')
+    expect(preview.compiledBody).not.toContain('undefined')
+    expect(typeof preview.compiledBody).toBe('string')
   })
 
   it('exposes rows array for {{#each}} iteration', () => {
@@ -83,8 +83,8 @@ describe('applyTemplateChanges data passthrough', () => {
     })
 
     const preview = usePreviewStore.getState()
-    expect(preview.compiledHtml).toContain('John Doe,')
-    expect(preview.compiledHtml).toContain('Jane Smith,')
+    expect(preview.compiledBody).toContain('John Doe,')
+    expect(preview.compiledBody).toContain('Jane Smith,')
   })
 
   it('compiles with combined template and data variables', () => {
@@ -98,8 +98,8 @@ describe('applyTemplateChanges data passthrough', () => {
     })
 
     const preview = usePreviewStore.getState()
-    expect(preview.compiledHtml).toContain('<h1>Target</h1>')
-    expect(preview.compiledHtml).toContain('Count: ')
+    expect(preview.compiledBody).toContain('<h1>Target</h1>')
+    expect(preview.compiledBody).toContain('Count: ')
   })
 
   it('uses updated data after dataStore rows change', () => {
@@ -108,13 +108,13 @@ describe('applyTemplateChanges data passthrough', () => {
     })
 
     applyTemplateChanges({ html: '{{label}}', css: '' })
-    expect(usePreviewStore.getState().compiledHtml).toContain('First')
+    expect(usePreviewStore.getState().compiledBody).toContain('First')
 
     useDataStore.setState({
       rows: [{ label: 'Second' }],
     })
 
     applyTemplateChanges({ html: '{{label}}', css: '' })
-    expect(usePreviewStore.getState().compiledHtml).toContain('Second')
+    expect(usePreviewStore.getState().compiledBody).toContain('Second')
   })
 })

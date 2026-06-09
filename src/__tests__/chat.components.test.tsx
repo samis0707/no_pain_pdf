@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+
+const mockRenderPdfPages = vi.hoisted(() => vi.fn())
+vi.mock('@/utils/pdfToImages', () => ({ renderPdfPages: mockRenderPdfPages }))
 
 import MessageList from '@/components/Chat/MessageList'
 import MessageInput from '@/components/Chat/MessageInput'
@@ -140,7 +143,7 @@ describe('MessageInput', () => {
     await user.click(sendBtn)
 
     expect(onSend).toHaveBeenCalledTimes(1)
-    expect(onSend).toHaveBeenCalledWith('Hello world')
+    expect(onSend).toHaveBeenCalledWith('Hello world', undefined)
   })
 
   it('clears the input after sending', async () => {
@@ -177,7 +180,64 @@ describe('MessageInput', () => {
 
     await user.keyboard('{Enter}')
     expect(onSend).toHaveBeenCalledTimes(1)
-    expect(onSend).toHaveBeenCalledWith('Enter send')
+    expect(onSend).toHaveBeenCalledWith('Enter send', undefined)
+  })
+})
+
+describe('MessageInput image upload', () => {
+  it('image upload button opens file picker', async () => {
+    const user = userEvent.setup()
+    render(<MessageInput onSend={vi.fn()} disabled={false} />)
+
+    const fileInput = screen.getByTestId('file-input')
+    const clickSpy = vi.spyOn(fileInput, 'click')
+
+    await user.click(screen.getByTestId('image-upload-button'))
+
+    expect(clickSpy).toHaveBeenCalled()
+  })
+
+  it('selecting image adds attachment preview', async () => {
+    const fakeDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+
+    let onloadCallback: ((this: any) => void) | null = null
+
+    class MockFileReader {
+      result = fakeDataUrl
+      set onload(fn: (this: any) => void) {
+        onloadCallback = fn
+      }
+      readAsDataURL() {
+        setTimeout(() => onloadCallback?.call(this), 0)
+      }
+    }
+
+    const origFR = globalThis.FileReader
+    globalThis.FileReader = MockFileReader as unknown as typeof FileReader
+
+    render(<MessageInput onSend={vi.fn()} disabled={false} />)
+
+    const file = new File(['fake-image'], 'test.png', { type: 'image/png' })
+    fireEvent.change(screen.getByTestId('file-input'), { target: { files: [file] } })
+
+    await waitFor(() => {
+      expect(screen.getByAltText('Attachment')).toBeInTheDocument()
+    })
+
+    globalThis.FileReader = origFR
+  })
+
+  it('selecting PDF calls renderPdfPages', async () => {
+    mockRenderPdfPages.mockResolvedValue([{ mimeType: 'image/jpeg', data: 'base64data' }])
+
+    render(<MessageInput onSend={vi.fn()} disabled={false} />)
+
+    const file = new File(['fake-pdf'], 'test.pdf', { type: 'application/pdf' })
+    fireEvent.change(screen.getByTestId('file-input'), { target: { files: [file] } })
+
+    await waitFor(() => {
+      expect(mockRenderPdfPages).toHaveBeenCalledWith(file)
+    })
   })
 })
 

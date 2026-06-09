@@ -6,11 +6,13 @@ const {
   mockPrintItemUpdate,
   mockDataSetFindFirst,
   mockDataSetCreate,
+  mockAssetFindMany,
 } = vi.hoisted(() => ({
   mockPrintItemFindUnique: vi.fn(),
   mockPrintItemUpdate: vi.fn(),
   mockDataSetFindFirst: vi.fn(),
   mockDataSetCreate: vi.fn(),
+  mockAssetFindMany: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -22,6 +24,9 @@ vi.mock('@/lib/prisma', () => ({
     dataSet: {
       findFirst: (...args: unknown[]) => mockDataSetFindFirst(...args),
       create: (...args: unknown[]) => mockDataSetCreate(...args),
+    },
+    asset: {
+      findMany: (...args: unknown[]) => mockAssetFindMany(...args),
     },
   },
 }))
@@ -190,16 +195,32 @@ describe('renderPreview', () => {
 })
 
 describe('getAssets', () => {
-  it('returns assets array with filename and url', async () => {
+  it('queries assets by printItemId and returns them', async () => {
+    const mockAssets = [
+      { id: 1, printItemId: 42, filename: 'assets/42/logo.png', originalName: 'logo.png', mimeType: 'image/png', fileSize: 12345, userId: 1, createdAt: new Date() },
+    ]
+    mockAssetFindMany.mockResolvedValue(mockAssets)
+
     const result = await getAssets(TEST_ITEM_ID)
-    expect(result).toHaveProperty('assets')
-    expect(Array.isArray(result.assets)).toBe(true)
-    if (result.assets.length > 0) {
-      expect(result.assets[0]).toHaveProperty('filename')
-      expect(result.assets[0]).toHaveProperty('url')
-      expect(typeof result.assets[0].filename).toBe('string')
-      expect(typeof result.assets[0].url).toBe('string')
-    }
+
+    expect(mockAssetFindMany).toHaveBeenCalledWith({
+      where: { printItemId: 42 },
+      orderBy: { createdAt: 'desc' },
+    })
+    expect(result.assets).toHaveLength(1)
+    expect(result.assets[0]).toEqual({
+      filename: 'assets/42/logo.png',
+      url: '/api/assets/file/assets/42/logo.png',
+      mimeType: 'image/png',
+    })
+  })
+
+  it('returns empty array when item has no assets', async () => {
+    mockAssetFindMany.mockResolvedValue([])
+
+    const result = await getAssets(TEST_ITEM_ID)
+
+    expect(result.assets).toEqual([])
   })
 })
 

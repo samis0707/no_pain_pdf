@@ -18,7 +18,7 @@ beforeEach(() => {
     version: 0,
   })
   usePreviewStore.setState({
-    compiledHtml: '',
+    compiledBody: '',
     isCompiling: false,
     compileError: null,
   })
@@ -46,7 +46,7 @@ describe('applyTemplateChanges', () => {
   it('triggers previewStore compilation', () => {
     applyTemplateChanges({ html: '<h1>{{title}}</h1>', css: '' })
     const preview = usePreviewStore.getState()
-    expect(preview.compiledHtml).toBeTruthy()
+    expect(preview.compiledBody).toBeTruthy()
   })
 
   it('reloads helper registry when miscText contains register_helper call', () => {
