@@ -20,7 +20,7 @@ interface ChatState {
   setMessages: (messages: ChatMessage[]) => void
   setStreaming: (streaming: boolean) => void
   setError: (error: string | null) => void
-  sendMessage: (content: string) => Promise<void>
+  sendMessage: (content: string, attachments?: Array<{ mimeType: string; data: string }>) => Promise<void>
   clearMessages: () => Promise<void>
   loadHistory: () => Promise<void>
 }
@@ -82,7 +82,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     }
   },
 
-  sendMessage: async (content) => {
+  sendMessage: async (content, attachments) => {
     const { itemId } = get()
     console.log('📤 [Chat] sendMessage: starting', { content, itemId })
     if (!itemId) {
@@ -92,11 +92,15 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
     set({ isStreaming: true, error: null })
     set((state) => ({
-      messages: [...state.messages, { role: 'user', content }],
+      messages: [...state.messages, { role: 'user', content, attachments }],
     }))
 
     try {
-      const requestBody = JSON.stringify({ itemId, message: { role: 'user', content } })
+      const messageBody: Record<string, unknown> = { role: 'user', content }
+      if (attachments && attachments.length > 0) {
+        messageBody.attachments = attachments
+      }
+      const requestBody = JSON.stringify({ itemId, message: messageBody })
       console.log('📤 [Chat] sendMessage: fetching /api/ai/chat', { body: requestBody })
       const res = await fetch('/api/ai/chat', {
         method: 'POST',

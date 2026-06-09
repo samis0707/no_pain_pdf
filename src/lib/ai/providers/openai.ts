@@ -1,6 +1,45 @@
 import { AiProvider } from '../provider'
 import { ChatMessage, ProviderConfig } from '../types'
 
+function formatMessages(messages: ChatMessage[]): Record<string, unknown>[] {
+  return messages.map((msg) => {
+    if (msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0) {
+      return {
+        role: 'assistant',
+        content: null,
+        tool_calls: msg.toolCalls.map((tc) => ({
+          id: tc.id,
+          type: 'function',
+          function: {
+            name: tc.name,
+            arguments: JSON.stringify(tc.args),
+          },
+        })),
+      }
+    }
+    if (msg.role === 'tool') {
+      return {
+        role: 'tool',
+        tool_call_id: msg.toolCallId || '',
+        content: msg.content,
+      }
+    }
+    if (msg.role === 'user' && msg.attachments && msg.attachments.length > 0) {
+      const content: Array<Record<string, unknown>> = [
+        { type: 'text', text: msg.content },
+      ]
+      for (const att of msg.attachments) {
+        content.push({
+          type: 'image_url',
+          image_url: { url: `data:${att.mimeType};base64,${att.data}` },
+        })
+      }
+      return { role: 'user', content }
+    }
+    return { role: msg.role, content: msg.content }
+  })
+}
+
 export class OpenAIProvider extends AiProvider {
   constructor(config: ProviderConfig) {
     super(config)
@@ -15,7 +54,7 @@ export class OpenAIProvider extends AiProvider {
       const baseUrl = this.config.baseUrl || 'https://api.openai.com/v1'
       const body: Record<string, unknown> = {
         model: this.config.model,
-        messages,
+        messages: formatMessages(messages),
       }
       if (tools && tools.length > 0) {
         body.tools = tools
@@ -30,7 +69,8 @@ export class OpenAIProvider extends AiProvider {
       })
 
       if (!response.ok) {
-        return { role: 'assistant', content: `Error: API responded with status ${response.status}` }
+        const errBody = await response.text().catch(() => '')
+        return { role: 'assistant', content: `Error: API responded with status ${response.status}: ${errBody}` }
       }
 
       const data = await response.json() as { choices: Array<{ message: { role: string; content: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }> } }> }
@@ -65,13 +105,14 @@ export class OpenAIProvider extends AiProvider {
         },
         body: JSON.stringify({
           model: this.config.model,
-          messages,
+          messages: formatMessages(messages),
           stream: true,
         }),
       })
 
       if (!response.ok) {
-        yield `Error: API responded with status ${response.status}`
+        const errBody = await response.text().catch(() => '')
+        yield `Error: API responded with status ${response.status}: ${errBody}`
         return
       }
 

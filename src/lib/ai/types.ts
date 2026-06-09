@@ -17,6 +17,7 @@ export interface ChatMessage {
   version?: number
   toolCalls?: ToolCall[]
   toolCallId?: string
+  attachments?: Array<{ mimeType: string; data: string }>
 }
 
 export interface ProviderConfig {

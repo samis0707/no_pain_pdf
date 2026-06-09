@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { itemId, message } = body as { itemId: string; message: { role: string; content: string } }
+    const { itemId, message } = body as { itemId: string; message: { role: string; content: string; attachments?: Array<{ mimeType: string; data: string }> } }
     console.log('🌐 [API] POST /api/ai/chat', { itemId, role: message?.role, content: message?.content?.slice(0, 100) })
 
     if (!itemId) {

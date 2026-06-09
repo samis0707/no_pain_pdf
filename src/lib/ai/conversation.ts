@@ -3,14 +3,15 @@ import type { ChatMessage } from './types'
 export type { ChatMessage }
 
 function serializeChatMessage(msg: ChatMessage): { role: string; content: string; toolCalls: string; attachments: string } {
+  const attachmentData: Record<string, unknown> = {}
+  if (msg.version != null) attachmentData.version = msg.version
+  if (msg.toolCallId != null) attachmentData.toolCallId = msg.toolCallId
+  if (msg.attachments && msg.attachments.length > 0) attachmentData.images = msg.attachments
   return {
     role: msg.role,
     content: msg.content,
     toolCalls: JSON.stringify(msg.toolCalls ?? []),
-    attachments: JSON.stringify({
-      version: msg.version,
-      toolCallId: msg.toolCallId,
-    }),
+    attachments: JSON.stringify(attachmentData),
   }
 }
 
@@ -20,15 +21,16 @@ function deserializeChatMessage(
   const toolCalls = (() => {
     try { return JSON.parse(row.toolCalls) } catch { return [] }
   })()
-  const attachments = (() => {
+  const attachmentData = (() => {
     try { return JSON.parse(row.attachments) } catch { return {} }
   })()
   return {
     role: row.role,
     content: row.content,
     toolCalls: Array.isArray(toolCalls) && toolCalls.length > 0 ? toolCalls : undefined,
-    version: attachments.version,
-    toolCallId: attachments.toolCallId,
+    version: attachmentData.version != null ? attachmentData.version : undefined,
+    toolCallId: attachmentData.toolCallId != null ? attachmentData.toolCallId : undefined,
+    attachments: Array.isArray(attachmentData.images) && attachmentData.images.length > 0 ? attachmentData.images : undefined,
   }
 }
 
