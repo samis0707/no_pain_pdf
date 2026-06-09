@@ -10,7 +10,7 @@ interface ChatSidebarProps {
   messages: ChatMessage[]
   isStreaming: boolean
   error: string | null
-  onSend: (content: string) => void
+  onSend: (content: string, attachments?: Array<{ mimeType: string; data: string }>) => void
   onClear: () => void
   onExportPdf?: () => void
   isExporting?: boolean
@@ -97,6 +97,19 @@ export default function ChatSidebar({ messages, isStreaming, error, onSend, onCl
             type="button"
           >
             New Chat
+          </button>
+          <button
+            data-testid="analyze-data-button"
+            onClick={() => onSend("Please analyze the current dataset. Check for duplicates, null values, data type detection, and suggest improvements.")}
+            disabled={isStreaming}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              isStreaming
+                ? 'text-zinc-300 bg-zinc-100 border border-zinc-200 cursor-not-allowed'
+                : 'text-amber-700 hover:text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100'
+            }`}
+            type="button"
+          >
+            Analyze Data
           </button>
         </div>
       </div>

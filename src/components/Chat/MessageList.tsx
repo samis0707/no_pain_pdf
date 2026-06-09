@@ -50,10 +50,15 @@ export default function MessageList({ messages, isStreaming, onRollback }: Messa
           {msg.toolCalls && msg.toolCalls.length > 0 && (
             <div className="space-y-1 mt-1">
               {msg.toolCalls.map((tc) => (
-                <div key={tc.id} className="flex items-center gap-1.5 text-xs text-zinc-500">
-                  <span className="inline-block w-3 h-3 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
-                  <span>{tc.label || `Running ${tc.name}...`}</span>
-                </div>
+                <details key={tc.id} className="text-xs text-zinc-500">
+                  <summary className="flex items-center gap-1.5 cursor-pointer hover:text-zinc-700">
+                    <span className="text-zinc-500 text-sm font-bold">→</span>
+                    <span>{tc.label || `Running ${tc.name}...`}</span>
+                  </summary>
+                  <div className="mt-1 ml-4 p-2 bg-zinc-50 rounded border border-zinc-200 font-mono text-[10px] whitespace-pre-wrap text-zinc-600">
+                    {JSON.stringify(tc.args, null, 2)}
+                  </div>
+                </details>
               ))}
             </div>
           )}
