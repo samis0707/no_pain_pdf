@@ -6,6 +6,7 @@ class GenerateRequest(BaseModel):
     html: str
     css: Optional[str] = ""
     options: Optional[Dict[str, object]] = None
+    base_url: Optional[str] = ""
     assets: Optional[Dict[str, str]] = None
     metadata: Optional[Dict[str, str]] = None
 

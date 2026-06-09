@@ -54,6 +54,7 @@ services:
       - "3001:3001"
     environment:
       - PYTHONUNBUFFERED=1
+      - NEXTJS_URL=http://nextjs:3000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 10s
@@ -91,6 +92,10 @@ services:
       S3_FORCE_PATH_STYLE: "true"
       WEASYPRINT_URL: http://weasyprint:3001
       GHOSTSCRIPT_URL: http://ghostscript:3002
+      LLM_PROVIDER: ${LLM_PROVIDER}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL}
+      LLM_BASE_URL: ${LLM_BASE_URL}
     depends_on:
       postgres:
         condition: service_healthy

@@ -4,6 +4,7 @@ Called as: python -m app.pdf_worker
 Reads JSON from stdin, writes PDF bytes to stdout.
 """
 import json
+import os
 import sys
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
@@ -16,13 +17,15 @@ def main() -> None:
     css = data.get("css", "")
     options = data.get("options") or {}
 
+    base_url = os.environ.get("NEXTJS_URL") or data.get("base_url") or ""
+
     font_config = FontConfiguration()
 
     stylesheets = []
     if css:
         stylesheets.append(CSS(string=css))
 
-    pdf_bytes = HTML(string=html).write_pdf(
+    pdf_bytes = HTML(string=html, base_url=base_url).write_pdf(
         stylesheets=stylesheets,
         font_config=font_config,
         pdf_variant=options.get("pdf_variant"),

@@ -37,6 +37,7 @@ def render_pdf(
     html: str,
     css: str = "",
     options: Optional[dict] = None,
+    base_url: str = "",
 ) -> bytes:
     """Render HTML+CSS to PDF bytes using WeasyPrint in a subprocess.
 
@@ -61,6 +62,7 @@ def render_pdf(
         "html": html,
         "css": css,
         "options": options or {},
+        "base_url": base_url,
     }
 
     def set_limits() -> None:

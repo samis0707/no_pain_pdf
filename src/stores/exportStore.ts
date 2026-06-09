@@ -98,6 +98,7 @@ export const useExportStore = create<ExportState>()((set, get) => ({
           html: compiledHtml,
           css: fullCss,
           options,
+          base_url: window.location.origin,
         }),
       })
 

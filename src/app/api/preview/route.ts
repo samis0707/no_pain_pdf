@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server'
 const WEASYPRINT_URL = process.env.WEASYPRINT_URL ?? 'http://localhost:3001'
 
 export async function POST(request: NextRequest) {
-  let body: { html?: string; css?: string; options?: Record<string, unknown> }
+  let body: { html?: string; css?: string; options?: Record<string, unknown>; base_url?: string }
   try {
     body = await request.json()
   } catch {
@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
         html: body.html,
         css: body.css ?? '',
         options: body.options ?? {},
+        base_url: body.base_url ?? '',
       }),
     })
 

@@ -39,6 +39,7 @@ async def generate(req: GenerateRequest):
             html=req.html,
             css=req.css or "",
             options=req.options or {},
+            base_url=req.base_url or "",
         )
         return Response(content=pdf_bytes, media_type="application/pdf")
     except PDFTimeoutError as e:
