@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     libgdk-pixbuf-2.0-0 \
     libfontconfig1 \
     fonts-noto \
+    fonts-noto-color-emoji \
     fonts-liberation \
     curl \
     && rm -rf /var/lib/apt/lists/*
