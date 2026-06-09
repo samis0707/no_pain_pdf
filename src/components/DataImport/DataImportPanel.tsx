@@ -5,6 +5,8 @@ import { useDataStore } from '@/stores/dataStore'
 import CSVUploader from './CSVUploader'
 import DataPreview from './DataPreview'
 import FieldMapper from './FieldMapper'
+import ImageUploader from './ImageUploader'
+import AssetBrowser from './AssetBrowser'
 
 export default function DataImportPanel({ itemId }: { itemId: number }) {
   const { setItemId, fetchDatasets, columns, datasets, selectedDatasetId, selectDataset } = useDataStore()
@@ -36,6 +38,16 @@ export default function DataImportPanel({ itemId }: { itemId: number }) {
       {hasData && <DataPreview />}
 
       {hasData && <FieldMapper />}
+
+      <div className="border-t pt-6">
+        <h2 className="text-xl font-semibold">Images</h2>
+        <p className="text-zinc-500 text-sm">
+          Upload images to use in your template (logos, backgrounds, etc.)
+        </p>
+      </div>
+
+      <ImageUploader itemId={itemId} />
+      <AssetBrowser itemId={itemId} />
     </div>
   )
 }
