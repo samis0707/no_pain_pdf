@@ -148,3 +148,26 @@ describe('ArtifactPanel', () => {
     expect(screen.getByTestId('preview-panel')).toBeInTheDocument()
   })
 })
+
+describe('mobile ergonomics', () => {
+  it('uses a 16px input font so iOS Safari does not zoom on focus', async () => {
+    const { default: SdkChat } = await import('@/components/Chat/SdkChat')
+    mockUseChat.mockReturnValue(chatState([]))
+
+    render(<SdkChat itemId="7" />)
+
+    expect(screen.getByTestId('chat-input').className).toContain('text-base')
+  })
+
+  it('artifact tab bar scrolls horizontally instead of wrapping off-screen', async () => {
+    vi.doMock('@/components/Preview/PreviewPanel', () => ({ default: () => <div /> }))
+    vi.doMock('@/components/Editor/MonacoEditor', () => ({ default: () => <div /> }))
+    vi.doMock('@/components/DataImport/DataImportPanel', () => ({ default: () => <div /> }))
+    vi.doMock('@/components/artifact/VisualEditor', () => ({ default: () => <div /> }))
+    const { default: ArtifactPanel } = await import('@/components/artifact/ArtifactPanel')
+
+    const { container } = render(<ArtifactPanel itemId={7} />)
+
+    expect(container.querySelector('nav')?.className).toContain('overflow-x-auto')
+  })
+})
