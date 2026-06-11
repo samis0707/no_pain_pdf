@@ -31,7 +31,9 @@ describe('resolveModel', () => {
     const model = resolveModel()
 
     expect(model.modelId).toBe('gpt-codex-6')
-    expect(model.provider).toContain('openai')
+    // Must target /chat/completions, not the OpenAI-only /responses API —
+    // LLM_PROVIDER=openai covers OpenAI-compatible routers (eurouter etc.).
+    expect(model.provider).toBe('openai.chat')
   })
 
   it('builds a google model from env', async () => {

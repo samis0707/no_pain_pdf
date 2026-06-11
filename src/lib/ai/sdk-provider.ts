@@ -18,7 +18,9 @@ export function resolveModel(): Extract<LanguageModel, object> {
     case 'openai': {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { createOpenAI } = require('@ai-sdk/openai') as typeof import('@ai-sdk/openai')
-      return createOpenAI({ apiKey, baseURL })(model)
+      // .chat() targets /chat/completions — required for OpenAI-compatible
+      // routers (eurouter, Groq, DeepSeek …) that don't serve /responses.
+      return createOpenAI({ apiKey, baseURL }).chat(model)
     }
     case 'anthropic': {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
