@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/pdf/generate/route'
+import { POST as PREVIEW_POST } from '@/app/api/preview/route'
+
+vi.mock('@/lib/s3', () => ({
+  generateInternalDownloadUrl: vi.fn(
+    async (key: string) => `http://minio:9000/uploads/${key}?X-Amz-Signature=route`
+  ),
+}))
 
 const MOCK_PDF_BYTES = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52]) // %PDF-1.4
 
@@ -92,5 +99,47 @@ describe('POST /api/pdf/generate proxies to WeasyPrint', () => {
 
     const response = await POST(request)
     expect(response.status).toBe(500)
+  })
+})
+
+describe('asset URL rewriting before WeasyPrint', () => {
+  const assetBody = JSON.stringify({
+    html: '<img src="/api/assets/file/assets/1/logo.png">',
+    css: '.hero { background: url(/api/assets/file/assets/1/bg.jpg); }',
+  })
+
+  it('POST /api/pdf/generate sends presigned URLs, not /api/assets/file/ paths', async () => {
+    const request = new NextRequest('http://localhost:3000/api/pdf/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: assetBody,
+    })
+
+    await POST(request)
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string)
+    expect(sentBody.html).toContain(
+      'http://minio:9000/uploads/assets/1/logo.png?X-Amz-Signature=route'
+    )
+    expect(sentBody.css).toContain(
+      'http://minio:9000/uploads/assets/1/bg.jpg?X-Amz-Signature=route'
+    )
+    expect(sentBody.html).not.toContain('/api/assets/file/')
+    expect(sentBody.css).not.toContain('/api/assets/file/')
+  })
+
+  it('POST /api/preview sends presigned URLs, not /api/assets/file/ paths', async () => {
+    const request = new NextRequest('http://localhost:3000/api/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: assetBody,
+    })
+
+    await PREVIEW_POST(request)
+
+    const sentBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string)
+    expect(sentBody.html).not.toContain('/api/assets/file/')
+    expect(sentBody.css).not.toContain('/api/assets/file/')
+    expect(sentBody.html).toContain('X-Amz-Signature=route')
   })
 })
