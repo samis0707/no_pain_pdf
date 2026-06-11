@@ -15,6 +15,7 @@ model User {
   preferences  String          @default("{}")
   projects     PrintProject[]
   assets       Asset[]
+  templates    PrintTemplate[]
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 }
@@ -26,20 +27,28 @@ model PrintProject {
   name      String
   status    String       @default("draft")
   items     PrintItem[]
+  templates PrintTemplate[]
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 }
 
 model PrintTemplate {
-  id        Int          @id @default(autoincrement())
-  name      String
-  category  String?
-  html      String
-  css       String
-  metadata  String       @default("{}")
-  items     PrintItem[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id           Int           @id @default(autoincrement())
+  name         String
+  category     String?
+  html         String
+  css          String
+  metadata     String        @default("{}")
+  // Scoping: both null = global preset; userId = user's corporate-identity
+  // template; projectId = project-scoped template.
+  userId       Int?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  projectId    Int?
+  project      PrintProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceItemId Int?
+  items        PrintItem[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model PrintItem {
