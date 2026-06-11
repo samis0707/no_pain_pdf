@@ -17,6 +17,12 @@ vi.mock('@/lib/versioning', async (importOriginal) => {
 
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 
+vi.mock('@/lib/auth-session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-session')>()),
+  requireUserId: vi.fn().mockResolvedValue(1),
+  findOwnedItem: vi.fn().mockResolvedValue({ id: 1, project: { userId: 1 } }),
+}))
+
 const { POST, GET } = await import('@/app/api/items/[id]/rollback/route')
 
 function postRequest(id: string, body?: unknown): NextRequest {

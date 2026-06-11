@@ -1,11 +1,19 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { parseCsvMetadata } from '@/utils/csvParser'
+import { requireUserId, unauthorizedResponse, findOwnedItem } from '@/lib/auth-session'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id } = await params
   const printItemId = parseInt(id)
 
@@ -16,9 +24,7 @@ export async function POST(
     })
   }
 
-  const item = await prisma.printItem.findUnique({
-    where: { id: printItemId },
-  })
+  const item = await findOwnedItem(printItemId, userId)
 
   if (!item) {
     return new Response(JSON.stringify({ error: 'Not found' }), {
@@ -105,12 +111,26 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id } = await params
   const printItemId = parseInt(id)
 
   if (isNaN(printItemId)) {
     return new Response(JSON.stringify({ error: 'Invalid item ID' }), {
       status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (!(await findOwnedItem(printItemId, userId))) {
+    return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
       headers: { 'Content-Type': 'application/json' },
     })
   }

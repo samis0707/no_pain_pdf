@@ -1,11 +1,16 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { listTemplates } from '@/lib/templates'
-
-// TODO(Epic D): replace with the session user once auth lands.
-const CURRENT_USER_ID = 1
+import { requireUserId, unauthorizedResponse } from '@/lib/auth-session'
 
 export async function GET(request: NextRequest) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const projectIdParam = request.nextUrl.searchParams.get('projectId')
   const projectId = projectIdParam ? parseInt(projectIdParam) : undefined
 
@@ -13,11 +18,18 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: 'projectId must be a number' }, { status: 400 })
   }
 
-  const templates = await listTemplates(CURRENT_USER_ID, projectId)
+  const templates = await listTemplates(userId, projectId)
   return Response.json({ templates })
 }
 
 export async function POST(request: NextRequest) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   let body: { name?: string; html?: string; css?: string; category?: string; projectId?: number }
   try {
     body = await request.json()
@@ -35,7 +47,7 @@ export async function POST(request: NextRequest) {
       html: body.html,
       css: body.css ?? '',
       category: body.category ?? null,
-      userId: CURRENT_USER_ID,
+      userId,
       projectId: body.projectId ?? null,
     },
   })

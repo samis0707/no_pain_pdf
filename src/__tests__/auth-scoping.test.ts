@@ -126,7 +126,7 @@ describe('assets scoping', () => {
     const { GET } = await import('@/app/api/assets/route')
     mockPrisma.asset.findMany.mockResolvedValue([])
 
-    await GET(new NextRequest('http://localhost/api/assets'))
+    await GET(new NextRequest('http://localhost/api/assets?printItemId=5'))
 
     const where = mockPrisma.asset.findMany.mock.calls[0][0].where
     expect(where).toMatchObject({ userId: SESSION_USER })

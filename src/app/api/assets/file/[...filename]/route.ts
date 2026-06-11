@@ -1,10 +1,17 @@
 import { prisma } from '@/lib/prisma'
 import { getFile } from '@/lib/s3'
+import { requireUserId, unauthorizedResponse } from '@/lib/auth-session'
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ filename: string[] }> }
 ) {
+  try {
+    await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const filename = (await params).filename.join('/')
 
   const asset = await prisma.asset.findFirst({

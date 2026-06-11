@@ -36,6 +36,12 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
+vi.mock('@/lib/auth-session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-session')>()),
+  requireUserId: vi.fn().mockResolvedValue(1),
+  findOwnedItem: vi.fn().mockResolvedValue({ id: 1, project: { userId: 1 } }),
+}))
+
 const { POST, GET, DELETE } = await import('@/app/api/ai/chat/route')
 
 function createMockStream(): ReadableStream<Uint8Array> {

@@ -1,55 +1,59 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUserId, unauthorizedResponse } from '@/lib/auth-session'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id } = await params
 
   const item = await prisma.printItem.findUnique({
     where: { id: parseInt(id) },
-    include: { datasets: true, pageFormat: true },
+    include: { datasets: true, pageFormat: true, project: true },
   })
 
-  if (!item) {
-    return new Response(JSON.stringify({ error: 'Item not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    })
+  if (!item || item.project.userId !== userId) {
+    return Response.json({ error: 'Item not found' }, { status: 404 })
   }
 
-  return new Response(JSON.stringify(item), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return Response.json(item)
 }
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id } = await params
 
   const existing = await prisma.printItem.findUnique({
     where: { id: parseInt(id) },
+    include: { project: true },
   })
 
-  if (!existing) {
-    return new Response(JSON.stringify({ error: 'Item not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    })
+  if (!existing || existing.project.userId !== userId) {
+    return Response.json({ error: 'Item not found' }, { status: 404 })
   }
 
   let body: Record<string, unknown>
   try {
     body = await request.json()
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
   const data: Record<string, unknown> = {}
@@ -68,49 +72,43 @@ export async function PUT(
         where: { id: body.pageFormatId as number },
       })
       if (!format) {
-        return new Response(JSON.stringify({ error: 'PageFormat not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        })
+        return Response.json({ error: 'PageFormat not found' }, { status: 404 })
       }
       data.pageFormatId = body.pageFormatId
     }
   }
 
   const item = await prisma.printItem.update({
-    where: { id: parseInt(id) },
+    where: { id: existing.id },
     data,
   })
 
-  return new Response(JSON.stringify(item), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return Response.json(item)
 }
 
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id } = await params
 
   const existing = await prisma.printItem.findUnique({
     where: { id: parseInt(id) },
+    include: { project: true },
   })
 
-  if (!existing) {
-    return new Response(JSON.stringify({ error: 'Item not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    })
+  if (!existing || existing.project.userId !== userId) {
+    return Response.json({ error: 'Item not found' }, { status: 404 })
   }
 
-  await prisma.printItem.delete({
-    where: { id: parseInt(id) },
-  })
+  await prisma.printItem.delete({ where: { id: existing.id } })
 
-  return new Response(JSON.stringify({ success: true }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return Response.json({ success: true })
 }

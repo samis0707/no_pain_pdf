@@ -1,11 +1,23 @@
 import { NextRequest } from 'next/server'
 import { rollbackItem, listVersions, VersionNotFoundError } from '@/lib/versioning'
+import { requireUserId, unauthorizedResponse, findOwnedItem } from '@/lib/auth-session'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id } = await params
+
+  if (!(await findOwnedItem(id, userId))) {
+    return Response.json({ error: 'Item not found' }, { status: 404 })
+  }
 
   let body: { version?: unknown } = {}
   try {
@@ -34,7 +46,19 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id } = await params
+
+  if (!(await findOwnedItem(id, userId))) {
+    return Response.json({ error: 'Item not found' }, { status: 404 })
+  }
+
   const versions = await listVersions(id)
   return Response.json({ versions })
 }

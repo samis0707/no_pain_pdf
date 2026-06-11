@@ -1,8 +1,16 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { uploadFile } from '@/lib/s3'
+import { requireUserId, unauthorizedResponse } from '@/lib/auth-session'
 
 export async function POST(request: NextRequest) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   let formData: FormData
   try {
     formData = await request.formData()
@@ -53,7 +61,7 @@ export async function POST(request: NextRequest) {
       mimeType: file.type,
       fileSize: buffer.length,
       printItemId: printItemId ?? null,
-      userId: 1,
+      userId,
     },
   })
 

@@ -1,99 +1,91 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUserId, unauthorizedResponse } from '@/lib/auth-session'
+
+async function findOwnedProject(id: string, userId: number) {
+  const projectId = parseInt(id)
+  if (isNaN(projectId)) return null
+  const project = await prisma.printProject.findUnique({ where: { id: projectId } })
+  if (!project || project.userId !== userId) return null
+  return project
+}
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
-  const project = await prisma.printProject.findUnique({
-    where: { id: parseInt(id) },
-  })
-
-  if (!project) {
-    return new Response(JSON.stringify({ error: 'Not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    })
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
   }
 
-  return new Response(JSON.stringify(project), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  const { id } = await params
+  const project = await findOwnedProject(id, userId)
+  if (!project) {
+    return Response.json({ error: 'Not found' }, { status: 404 })
+  }
+  return Response.json(project)
 }
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id } = await params
 
   let body: Record<string, unknown>
   try {
     body = await request.json()
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const existing = await prisma.printProject.findUnique({
-    where: { id: parseInt(id) },
-  })
-
+  const existing = await findOwnedProject(id, userId)
   if (!existing) {
-    return new Response(JSON.stringify({ error: 'Not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: 'Not found' }, { status: 404 })
   }
 
   if (Object.keys(body).length === 0) {
-    return new Response(JSON.stringify({ error: 'No fields to update' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: 'No fields to update' }, { status: 400 })
   }
 
   const project = await prisma.printProject.update({
-    where: { id: parseInt(id) },
+    where: { id: existing.id },
     data: {
       ...(body.name !== undefined && { name: body.name as string }),
       ...(body.status !== undefined && { status: body.status as string }),
     },
   })
 
-  return new Response(JSON.stringify(project), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return Response.json(project)
 }
 
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
-
-  const existing = await prisma.printProject.findUnique({
-    where: { id: parseInt(id) },
-  })
-
-  if (!existing) {
-    return new Response(JSON.stringify({ error: 'Not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    })
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
   }
 
-  await prisma.printProject.delete({
-    where: { id: parseInt(id) },
-  })
+  const { id } = await params
+  const existing = await findOwnedProject(id, userId)
+  if (!existing) {
+    return Response.json({ error: 'Not found' }, { status: 404 })
+  }
 
-  return new Response(JSON.stringify({ success: true }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  await prisma.printProject.delete({ where: { id: existing.id } })
+  return Response.json({ success: true })
 }

@@ -18,6 +18,11 @@ vi.mock('@/lib/s3', () => ({
   deleteFile: (...args: unknown[]) => mockDeleteFile(...args),
 }))
 
+vi.mock('@/lib/auth-session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-session')>()),
+  requireUserId: vi.fn().mockResolvedValue(1),
+}))
+
 const { DELETE } = await import('@/app/api/assets/[id]/route')
 
 function makeRequest(id: string): NextRequest {

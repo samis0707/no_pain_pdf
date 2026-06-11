@@ -1,22 +1,30 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUserId, unauthorizedResponse } from '@/lib/auth-session'
 
 export async function GET(request: NextRequest) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   try {
     const { searchParams } = request.nextUrl
     const printItemId = searchParams.get('printItemId')
-    
+
     if (!printItemId) {
       return Response.json({ error: 'printItemId is required' }, { status: 400 })
     }
-    
+
     const id = parseInt(printItemId)
     if (isNaN(id)) {
       return Response.json({ error: 'Invalid printItemId' }, { status: 400 })
     }
-    
+
     const assets = await prisma.asset.findMany({
-      where: { printItemId: id },
+      where: { printItemId: id, userId },
       orderBy: { createdAt: 'desc' },
     })
     

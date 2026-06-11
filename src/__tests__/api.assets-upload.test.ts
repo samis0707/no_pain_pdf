@@ -17,6 +17,11 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
+vi.mock('@/lib/auth-session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-session')>()),
+  requireUserId: vi.fn().mockResolvedValue(1),
+}))
+
 const { POST } = await import('@/app/api/assets/upload/route')
 
 function createRequestWithFormData(formData: FormData): NextRequest {

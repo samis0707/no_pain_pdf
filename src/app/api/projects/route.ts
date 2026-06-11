@@ -1,41 +1,41 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUserId, unauthorizedResponse } from '@/lib/auth-session'
 
 export async function GET() {
-  const projects = await prisma.printProject.findMany()
-  return new Response(JSON.stringify(projects), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
+  const projects = await prisma.printProject.findMany({ where: { userId } })
+  return Response.json(projects)
 }
 
 export async function POST(request: NextRequest) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   let body: { name?: string }
   try {
     body = await request.json()
   } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
   if (!body.name) {
-    return new Response(JSON.stringify({ error: 'name is required' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return Response.json({ error: 'name is required' }, { status: 400 })
   }
 
   const project = await prisma.printProject.create({
-    data: {
-      name: body.name,
-      userId: 1,
-    },
+    data: { name: body.name, userId },
   })
 
-  return new Response(JSON.stringify(project), {
-    status: 201,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  return Response.json(project, { status: 201 })
 }

@@ -1,10 +1,18 @@
 import { prisma } from '@/lib/prisma'
 import { deleteFile } from '@/lib/s3'
+import { requireUserId, unauthorizedResponse } from '@/lib/auth-session'
 
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   try {
     const { id } = await params
     const assetId = parseInt(id)
@@ -13,7 +21,7 @@ export async function DELETE(
     }
 
     const asset = await prisma.asset.findUnique({ where: { id: assetId } })
-    if (!asset) {
+    if (!asset || asset.userId !== userId) {
       return Response.json({ error: 'Asset not found' }, { status: 404 })
     }
 

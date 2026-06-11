@@ -1,14 +1,23 @@
 import { NextRequest } from 'next/server'
 import { saveItemAsTemplate } from '@/lib/templates'
-
-// TODO(Epic D): replace with the session user once auth lands.
-const CURRENT_USER_ID = 1
+import { requireUserId, unauthorizedResponse, findOwnedItem } from '@/lib/auth-session'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id } = await params
+
+  if (!(await findOwnedItem(id, userId))) {
+    return Response.json({ error: 'Item not found' }, { status: 404 })
+  }
 
   let body: { name?: string; scope?: string; category?: string }
   try {
@@ -29,7 +38,7 @@ export async function POST(
       name: body.name,
       scope: body.scope,
       category: body.category,
-      userId: CURRENT_USER_ID,
+      userId,
     })
     return Response.json(template, { status: 201 })
   } catch (error: unknown) {

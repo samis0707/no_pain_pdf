@@ -24,6 +24,12 @@ vi.mock('@/lib/templates', () => ({
 
 vi.mock('@/lib/prisma', () => ({ prisma: mockPrisma }))
 
+vi.mock('@/lib/auth-session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-session')>()),
+  requireUserId: vi.fn().mockResolvedValue(1),
+  findOwnedItem: vi.fn().mockResolvedValue({ id: 7, project: { userId: 1 } }),
+}))
+
 const TEMPLATE = {
   id: 10,
   name: 'ACME Letterhead',

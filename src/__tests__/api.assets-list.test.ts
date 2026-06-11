@@ -10,6 +10,11 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
+vi.mock('@/lib/auth-session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/auth-session')>()),
+  requireUserId: vi.fn().mockResolvedValue(1),
+}))
+
 const { GET } = await import('@/app/api/assets/route')
 
 function makeRequest(printItemId?: string): NextRequest {
@@ -71,7 +76,7 @@ describe('GET /api/assets', () => {
     })
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { printItemId: 42 },
+        where: { printItemId: 42, userId: 1 },
       })
     )
   })

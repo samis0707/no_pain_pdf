@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { renderPdf, PdfRenderError } from '@/lib/pdf-render'
 
+// Stateless render proxy — anonymous traffic is already rejected by the
+// session-cookie check in src/proxy.ts; no user data is accessed here.
 export async function POST(request: NextRequest) {
   let body: { html?: string; css?: string; options?: Record<string, unknown>; base_url?: string }
   try {

@@ -1,10 +1,18 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUserId, unauthorizedResponse, findOwnedItem } from '@/lib/auth-session'
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string; dsId: string }> }
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id, dsId } = await params
   const printItemId = parseInt(id)
   const datasetId = parseInt(dsId)
@@ -12,6 +20,13 @@ export async function GET(
   if (isNaN(printItemId) || isNaN(datasetId)) {
     return new Response(JSON.stringify({ error: 'Invalid ID' }), {
       status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (!(await findOwnedItem(printItemId, userId))) {
+    return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
       headers: { 'Content-Type': 'application/json' },
     })
   }
@@ -37,6 +52,13 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; dsId: string }> }
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id, dsId } = await params
   const printItemId = parseInt(id)
   const datasetId = parseInt(dsId)
@@ -44,6 +66,13 @@ export async function PUT(
   if (isNaN(printItemId) || isNaN(datasetId)) {
     return new Response(JSON.stringify({ error: 'Invalid ID' }), {
       status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (!(await findOwnedItem(printItemId, userId))) {
+    return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
       headers: { 'Content-Type': 'application/json' },
     })
   }
@@ -99,6 +128,13 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string; dsId: string }> }
 ) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   const { id, dsId } = await params
   const printItemId = parseInt(id)
   const datasetId = parseInt(dsId)
@@ -106,6 +142,13 @@ export async function DELETE(
   if (isNaN(printItemId) || isNaN(datasetId)) {
     return new Response(JSON.stringify({ error: 'Invalid ID' }), {
       status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (!(await findOwnedItem(printItemId, userId))) {
+    return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
       headers: { 'Content-Type': 'application/json' },
     })
   }

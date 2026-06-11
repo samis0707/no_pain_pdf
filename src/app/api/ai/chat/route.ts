@@ -4,8 +4,16 @@ import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import { getTemplate, getDataInfo, getHelpers, getAssets } from '@/lib/ai/tools'
 import { handleChatRequest } from '@/lib/ai/chat-route'
 import { prisma } from '@/lib/prisma'
+import { requireUserId, unauthorizedResponse, findOwnedItem } from '@/lib/auth-session'
 
 export async function POST(request: NextRequest) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   try {
     const body = await request.json()
     const { itemId, message } = body as { itemId: string; message: { role: string; content: string; attachments?: Array<{ mimeType: string; data: string }> } }
@@ -13,6 +21,10 @@ export async function POST(request: NextRequest) {
 
     if (!itemId) {
       return Response.json({ error: 'itemId is required' }, { status: 400 })
+    }
+
+    if (!(await findOwnedItem(itemId, userId))) {
+      return Response.json({ error: 'Item not found' }, { status: 404 })
     }
 
     if (!message || !message.role || !message.content) {
@@ -86,12 +98,23 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const itemId = searchParams.get('itemId')
 
     if (!itemId) {
       return Response.json({ error: 'itemId is required' }, { status: 400 })
+    }
+
+    if (!(await findOwnedItem(itemId, userId))) {
+      return Response.json({ error: 'Item not found' }, { status: 404 })
     }
 
     const messages = await loadMessages(itemId)
@@ -103,12 +126,23 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const itemId = searchParams.get('itemId')
 
     if (!itemId) {
       return Response.json({ error: 'itemId is required' }, { status: 400 })
+    }
+
+    if (!(await findOwnedItem(itemId, userId))) {
+      return Response.json({ error: 'Item not found' }, { status: 404 })
     }
 
     await clearConversation(itemId)
