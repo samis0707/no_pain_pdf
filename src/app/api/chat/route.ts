@@ -3,7 +3,7 @@ import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from 
 import { resolveModel } from '@/lib/ai/sdk-provider'
 import { buildSdkTools } from '@/lib/ai/sdk-tools'
 import { buildItemSystemPrompt } from '@/lib/ai/item-context'
-import { saveUIMessages } from '@/lib/ai/conversation'
+import { saveUIMessages, loadUIMessages, clearConversation } from '@/lib/ai/conversation'
 import { requireUserId, unauthorizedResponse, findOwnedItem } from '@/lib/auth-session'
 
 export const maxDuration = 120
@@ -48,4 +48,38 @@ export async function POST(request: NextRequest) {
       await saveUIMessages(itemId, allMessages as never)
     },
   })
+}
+
+async function requireOwnedItemId(request: NextRequest): Promise<string | Response> {
+  let userId: number
+  try {
+    userId = await requireUserId()
+  } catch {
+    return unauthorizedResponse()
+  }
+
+  const itemId = request.nextUrl.searchParams.get('itemId')
+  if (!itemId) {
+    return Response.json({ error: 'itemId is required' }, { status: 400 })
+  }
+  if (!(await findOwnedItem(itemId, userId))) {
+    return Response.json({ error: 'Item not found' }, { status: 404 })
+  }
+  return itemId
+}
+
+export async function GET(request: NextRequest) {
+  const itemIdOrError = await requireOwnedItemId(request)
+  if (itemIdOrError instanceof Response) return itemIdOrError
+
+  const messages = await loadUIMessages(itemIdOrError)
+  return Response.json({ messages })
+}
+
+export async function DELETE(request: NextRequest) {
+  const itemIdOrError = await requireOwnedItemId(request)
+  if (itemIdOrError instanceof Response) return itemIdOrError
+
+  await clearConversation(itemIdOrError)
+  return Response.json({ success: true })
 }
