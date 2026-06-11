@@ -11,9 +11,9 @@ export const auth = betterAuth({
   },
   advanced: {
     database: {
-      // Keep Better Auth compatible with the existing Int autoincrement ids
-      // (User.id and 8 FK-bearing tables predate auth).
-      useNumberId: true,
+      // "serial" keeps Better Auth compatible with the existing Int
+      // autoincrement ids (User.id and 8 FK-bearing tables predate auth).
+      generateId: 'serial',
     },
   },
 })
