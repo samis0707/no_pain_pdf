@@ -8,6 +8,8 @@ export interface ToolCall {
 export interface ToolResult {
   toolCallId: string
   result: unknown
+  /** Vision payloads (e.g. rendered preview pages), kept out of the JSON result. */
+  images?: Array<{ mimeType: string; data: string }>
 }
 
 export interface ChatMessage {
@@ -18,6 +20,8 @@ export interface ChatMessage {
   toolCalls?: ToolCall[]
   toolCallId?: string
   attachments?: Array<{ mimeType: string; data: string }>
+  /** Images attached to a tool result message for vision-capable models. */
+  images?: Array<{ mimeType: string; data: string }>
 }
 
 export interface ProviderConfig {

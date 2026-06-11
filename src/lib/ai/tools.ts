@@ -152,8 +152,11 @@ export async function analyzeData(
   return { duplicates, nulls, suggestions }
 }
 
-export async function renderPreview(_itemId: string): Promise<{ screenshot: string }> {
-  return { screenshot: 'ZGVmYXVsdC1zY3JlZW5zaG90' }
+export async function renderPreview(
+  itemId: string,
+): Promise<{ pageCount: number; truncated: boolean; images: Array<{ mimeType: string; data: string }> }> {
+  const { renderItemPreviewImages } = await import('@/lib/pdf-render')
+  return renderItemPreviewImages(itemId)
 }
 
 export async function getAssets(

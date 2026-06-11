@@ -31,6 +31,14 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
+const { mockRenderItemPreviewImages } = vi.hoisted(() => ({
+  mockRenderItemPreviewImages: vi.fn(),
+}))
+
+vi.mock('@/lib/pdf-render', () => ({
+  renderItemPreviewImages: mockRenderItemPreviewImages,
+}))
+
 import {
   getTemplate,
   updateTemplate,
@@ -186,11 +194,18 @@ describe('analyzeData', () => {
 })
 
 describe('renderPreview', () => {
-  it('returns screenshot as base64 string', async () => {
+  it('delegates to renderItemPreviewImages and returns its pages', async () => {
+    mockRenderItemPreviewImages.mockResolvedValueOnce({
+      pageCount: 1,
+      truncated: false,
+      images: [{ mimeType: 'image/jpeg', data: 'cGFnZTE=' }],
+    })
+
     const result = await renderPreview(TEST_ITEM_ID)
-    expect(result).toHaveProperty('screenshot')
-    expect(typeof result.screenshot).toBe('string')
-    expect(result.screenshot).toMatch(/^[A-Za-z0-9+/=]+$/)
+
+    expect(mockRenderItemPreviewImages).toHaveBeenCalledWith(TEST_ITEM_ID)
+    expect(result.pageCount).toBe(1)
+    expect(result.images[0].data).toBe('cGFnZTE=')
   })
 })
 

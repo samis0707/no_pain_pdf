@@ -262,6 +262,14 @@ export async function executeToolCall(itemId: string, toolCall: ToolCall): Promi
   }
 
   const result = await handler(itemId, toolCall.args)
+
+  // Image payloads ride on ToolResult.images so the serialized JSON result
+  // stays small enough for context windows and persistence.
+  if (result && typeof result === 'object' && Array.isArray((result as { images?: unknown }).images)) {
+    const { images, ...rest } = result as { images: Array<{ mimeType: string; data: string }> }
+    return { toolCallId: toolCall.id, result: rest, images }
+  }
+
   return { toolCallId: toolCall.id, result }
 }
 
