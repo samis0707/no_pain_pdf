@@ -110,7 +110,7 @@ const TOOL_DEFINITIONS = [
     type: 'function',
     function: {
       name: 'render_preview',
-      description: 'Render the template with current data and return a base64 screenshot',
+      description: 'Render the template with current data through the PDF pipeline and return images of the rendered pages so you can visually inspect the result',
       parameters: {
         type: 'object',
         properties: {},

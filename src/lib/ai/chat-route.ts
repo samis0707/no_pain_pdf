@@ -2,7 +2,41 @@ import { createProvider } from './registry'
 import { formatTextEvent, formatToolCallEvent, formatStreamEnd, formatErrorEvent } from './sse'
 import { executeToolCall, TOOL_DEFINITIONS } from './tool-loop'
 import { saveMessages } from './conversation'
-import type { ChatMessage } from './types'
+import { renderPreview } from './tools'
+import type { ChatMessage, ToolCall, ToolResult } from './types'
+
+// Tools whose success changes the rendered document — each gets an automatic
+// preview render so the model sees the result of its own edit.
+const MUTATOR_TOOLS = new Set([
+  'update_template',
+  'update_template_html',
+  'update_page_format',
+  'apply_template',
+])
+
+const MAX_AUTO_RENDERS = 3
+
+async function attachAutoPreview(
+  itemId: string,
+  toolCalls: ToolCall[],
+  toolResults: ToolResult[],
+): Promise<void> {
+  try {
+    const preview = await renderPreview(itemId)
+    for (let i = toolCalls.length - 1; i >= 0; i--) {
+      if (MUTATOR_TOOLS.has(toolCalls[i].name)) {
+        toolResults[i].images = preview.images
+        toolResults[i].result = {
+          ...(toolResults[i].result as Record<string, unknown>),
+          autoPreview: { pageCount: preview.pageCount, truncated: preview.truncated },
+        }
+        return
+      }
+    }
+  } catch (error) {
+    console.error('⚠️ [ChatRoute] Auto preview render failed:', error)
+  }
+}
 
 export async function handleChatRequest(
   itemId: string,
@@ -22,6 +56,7 @@ export async function handleChatRequest(
 
         const maxIterations = 10
         let iterations = 0
+        let autoRenders = 0
 
         while (response.toolCalls && response.toolCalls.length > 0 && iterations < maxIterations) {
           iterations++
@@ -39,12 +74,20 @@ export async function handleChatRequest(
             console.log('🤖 [ChatRoute] Tool result:', { toolCallId: tr.toolCallId, result: tr.result })
           }
 
+          const mutated = response.toolCalls.some((tc) => MUTATOR_TOOLS.has(tc.name))
+          const modelRendered = response.toolCalls.some((tc) => tc.name === 'render_preview')
+          if (mutated && !modelRendered && autoRenders < MAX_AUTO_RENDERS) {
+            autoRenders++
+            await attachAutoPreview(itemId, response.toolCalls, toolResults)
+          }
+
           currentMessages.push(response)
           for (const tr of toolResults) {
             currentMessages.push({
               role: 'tool',
               content: JSON.stringify(tr.result),
               toolCallId: tr.toolCallId,
+              images: tr.images,
             })
           }
 

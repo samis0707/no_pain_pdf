@@ -118,3 +118,32 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('```css')
   })
 })
+
+describe('visual feedback loop section', () => {
+  const baseContext = {
+    templateName: 'Test Flyer',
+    templateHtml: '<h1>{{title}}</h1>',
+    templateCss: '',
+    customHelpers: [],
+    dataColumns: [],
+    sampleRows: [],
+    rowCount: 0,
+    assets: [],
+    pageFormat: null,
+    availablePageFormats: [],
+  }
+
+  it('explains that render_preview returns real page images', () => {
+    const prompt = buildSystemPrompt(baseContext)
+    expect(prompt).toContain('## Visual Feedback')
+    expect(prompt).toContain('render_preview')
+    expect(prompt).toMatch(/page images|images of the rendered/i)
+  })
+
+  it('explains the automatic preview after template edits and asks for visual verification', () => {
+    const prompt = buildSystemPrompt(baseContext)
+    expect(prompt).toMatch(/automatic/i)
+    expect(prompt).toMatch(/verify|check/i)
+    expect(prompt).toContain('autoPreview')
+  })
+})
