@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     fonts-noto \
     fonts-noto-color-emoji \
     fonts-liberation \
+    poppler-utils \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
