@@ -10,6 +10,19 @@ interface MessageListProps {
   onRollback?: (msg: ChatMessage) => void
 }
 
+// Tool calls that change the document — only these offer a rollback.
+const MUTATOR_TOOLS = new Set([
+  'update_template',
+  'update_template_html',
+  'update_page_format',
+  'apply_template',
+  'register_helper',
+])
+
+function hasMutatorCall(msg: ChatMessage): boolean {
+  return msg.toolCalls?.some((tc) => MUTATOR_TOOLS.has(tc.name)) ?? false
+}
+
 function roleStyle(role: ChatMessage['role']): string {
   switch (role) {
     case 'user':
@@ -70,7 +83,7 @@ export default function MessageList({ messages, isStreaming, onRollback }: Messa
               v{msg.version}
             </span>
           )}
-          {msg.role === 'tool' && (
+          {(msg.role === 'tool' || (msg.role === 'assistant' && hasMutatorCall(msg))) && (
             <button
               data-testid="rollback-link"
               className="ml-2 text-blue-500 hover:text-blue-700 underline text-[10px]"

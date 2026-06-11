@@ -25,6 +25,7 @@ export default function EditorPage() {
   const chatClearMessages = useChatStore((s) => s.clearMessages)
   const chatSetItemId = useChatStore((s) => s.setItemId)
   const chatLoadHistory = useChatStore((s) => s.loadHistory)
+  const chatRollback = useChatStore((s) => s.rollback)
   const exportPdf = useExportStore((s) => s.exportPdf)
   const isExporting = useExportStore((s) => s.isExporting)
   const templateHtml = useTemplateStore((s) => s.html)
@@ -98,6 +99,8 @@ export default function EditorPage() {
               onClear={chatClearMessages}
               onExportPdf={() => exportPdf(templateHtml, templateCss)}
               isExporting={isExporting}
+              onUndo={() => chatRollback()}
+              onRollback={(msg) => chatRollback(msg.version)}
             />
           </div>
         )}

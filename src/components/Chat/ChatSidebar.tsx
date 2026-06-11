@@ -14,6 +14,8 @@ interface ChatSidebarProps {
   onClear: () => void
   onExportPdf?: () => void
   isExporting?: boolean
+  onUndo?: () => void
+  onRollback?: (msg: ChatMessage) => void
 }
 
 function enrichErrorMessage(msg: string): string {
@@ -39,7 +41,7 @@ function enrichErrorMessage(msg: string): string {
   return msg
 }
 
-export default function ChatSidebar({ messages, isStreaming, error, onSend, onClear, onExportPdf, isExporting }: ChatSidebarProps) {
+export default function ChatSidebar({ messages, isStreaming, error, onSend, onClear, onExportPdf, isExporting, onUndo, onRollback }: ChatSidebarProps) {
   const [width, setWidth] = useState(380)
   const [isResizing, setIsResizing] = useState(false)
 
@@ -85,6 +87,21 @@ export default function ChatSidebar({ messages, isStreaming, error, onSend, onCl
               {isExporting ? 'Generating...' : 'Export PDF'}
             </button>
           )}
+          {onUndo && (
+            <button
+              data-testid="undo-button"
+              onClick={onUndo}
+              disabled={isStreaming}
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                isStreaming
+                  ? 'text-zinc-300 bg-zinc-100 border border-zinc-200 cursor-not-allowed'
+                  : 'text-zinc-600 hover:text-zinc-800 bg-white border border-zinc-300 hover:bg-zinc-50'
+              }`}
+              type="button"
+            >
+              ↩ Undo
+            </button>
+          )}
           <button
             data-testid="new-chat-button"
             onClick={onClear}
@@ -125,7 +142,7 @@ export default function ChatSidebar({ messages, isStreaming, error, onSend, onCl
       )}
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        <MessageList messages={messages} isStreaming={isStreaming} />
+        <MessageList messages={messages} isStreaming={isStreaming} onRollback={onRollback} />
       </div>
 
       <HelperPanel />

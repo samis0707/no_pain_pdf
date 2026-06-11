@@ -23,6 +23,7 @@ interface ChatState {
   sendMessage: (content: string, attachments?: Array<{ mimeType: string; data: string }>) => Promise<void>
   clearMessages: () => Promise<void>
   loadHistory: () => Promise<void>
+  rollback: (version?: number) => Promise<void>
 }
 
 export const useChatStore = create<ChatState>()((set, get) => ({
@@ -79,6 +80,36 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       console.warn('⚠️ [Chat] Failed to load history:', e)
     } finally {
       set({ isLoadingHistory: false })
+    }
+  },
+
+  rollback: async (version) => {
+    const { itemId } = get()
+    if (!itemId) return
+
+    try {
+      const res = await fetch(`/api/items/${itemId}/rollback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(version !== undefined ? { version } : {}),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        set({ error: err.error || 'Rollback failed' })
+        return
+      }
+
+      const restored = await res.json()
+      await useTemplateStore.getState().fetchTemplate()
+      set((state) => ({
+        messages: [
+          ...state.messages,
+          { role: 'assistant', content: `↩ Reverted to v${restored.version}` },
+        ],
+      }))
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : 'Rollback failed' })
     }
   },
 
