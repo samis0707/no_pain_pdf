@@ -1,5 +1,6 @@
 import Handlebars from 'handlebars'
 import { prisma } from '@/lib/prisma'
+import { snapshotItem } from '@/lib/versioning'
 
 function parsePrintItemId(itemId: string): number {
   const id = parseInt(itemId)
@@ -33,6 +34,8 @@ export async function updateTemplate(
   const item = await prisma.printItem.findUnique({ where: { id } })
   if (!item) throw new Error(`Item not found: ${itemId}`)
 
+  await snapshotItem(itemId)
+
   const data: { html?: string; css?: string; version: number } = { version: item.version + 1 }
   if (html !== undefined) data.html = html
   if (css !== undefined) data.css = css
@@ -51,6 +54,8 @@ export async function updateTemplateHtml(
   const id = parsePrintItemId(itemId)
   const item = await prisma.printItem.findUnique({ where: { id } })
   if (!item) throw new Error(`Item not found: ${itemId}`)
+
+  await snapshotItem(itemId)
 
   const updated = await prisma.printItem.update({
     where: { id },
@@ -79,6 +84,8 @@ export async function updatePageFormat(
   const id = parsePrintItemId(itemId)
   const item = await prisma.printItem.findUnique({ where: { id } })
   if (!item) throw new Error(`Item not found: ${itemId}`)
+
+  await snapshotItem(itemId)
 
   const data: { pageFormatId?: number | null; css?: string; version: number } = { version: item.version + 1 }
   if (pageFormatId !== undefined) data.pageFormatId = pageFormatId

@@ -19,6 +19,9 @@ vi.mock('@/lib/prisma', () => ({
       findUnique: (...args: unknown[]) => mockPrintItemFindUnique(...args),
       update: (...args: unknown[]) => mockPrintItemUpdate(...args),
     },
+    printItemVersion: {
+      upsert: vi.fn().mockResolvedValue({}),
+    },
   },
 }))
 

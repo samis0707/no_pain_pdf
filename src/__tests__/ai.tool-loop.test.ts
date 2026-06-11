@@ -21,6 +21,9 @@ vi.mock('@/lib/prisma', () => ({
       findFirst: (...args: unknown[]) => mockDataSetFindFirst(...args),
       create: (...args: unknown[]) => mockDataSetCreate(...args),
     },
+    printItemVersion: {
+      upsert: vi.fn().mockResolvedValue({}),
+    },
   },
 }))
 
