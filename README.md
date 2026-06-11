@@ -43,5 +43,21 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Authentication
+
+Auth is handled by [Better Auth](https://better-auth.com) (email + password, DB sessions in Postgres). Set `BETTER_AUTH_SECRET` (e.g. `openssl rand -base64 32`) and `BETTER_AUTH_URL` in `.env`.
+
+- The seed creates a dev login: `dev@example.com` / `devpassword`.
+- **Legacy Supabase federation (optional):** set `SUPABASE_URL` and `SUPABASE_ANON_KEY` to let users of the existing Supabase-auth app sign in here with their old credentials. On first login they are migrated to a local credential (same password, scrypt-hashed) and linked via `User.supabaseUserId`; subsequent logins are fully local. Removing the env vars (or `src/lib/supabase-federation.ts`) disables the fallback — migrated users keep working.
+
+## Live API tests
+
+The suites in `src/__tests__/api.*.test.ts` that exercise a real server are skipped by default. To run them:
+
+```bash
+BETTER_AUTH_URL=http://localhost:3010 PORT=3010 npm run dev &
+TEST_API_URL=http://localhost:3010 npm run test
+```
+
 
 

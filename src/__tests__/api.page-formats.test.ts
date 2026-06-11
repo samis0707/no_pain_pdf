@@ -1,9 +1,9 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
 
-const BASE = process.env.TEST_API_URL || 'http://localhost:3000'
+import { E2E_BASE as BASE, e2eEnabled, e2eFetch } from './e2e-fetch'
 
-describe('Page Formats API', () => {
+describe.skipIf(!e2eEnabled)('Page Formats API', () => {
   let formats: Array<{
     id: number
     name: string
@@ -14,7 +14,7 @@ describe('Page Formats API', () => {
   }>
 
   it('GET /api/page-formats returns a list of page formats', async () => {
-    const res = await fetch(`${BASE}/api/page-formats`)
+    const res = await e2eFetch(`${BASE}/api/page-formats`)
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(Array.isArray(body)).toBe(true)

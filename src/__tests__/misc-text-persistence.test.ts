@@ -1,14 +1,14 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
 
-const BASE = process.env.TEST_API_URL || 'http://localhost:3000'
+import { E2E_BASE as BASE, e2eEnabled, e2eFetch } from './e2e-fetch'
 
-describe('miscText persistence through API', () => {
+describe.skipIf(!e2eEnabled)('miscText persistence through API', () => {
   let projectId: number
   let itemId: number
 
   it('creates a project first (prerequisite)', async () => {
-    const res = await fetch(`${BASE}/api/projects`, {
+    const res = await e2eFetch(`${BASE}/api/projects`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'MiscText Test Project' }),
@@ -18,7 +18,7 @@ describe('miscText persistence through API', () => {
   })
 
   it('creates a test item', async () => {
-    const res = await fetch(`${BASE}/api/items`, {
+    const res = await e2eFetch(`${BASE}/api/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ projectId, name: 'MiscText Test Item' }),
@@ -29,7 +29,7 @@ describe('miscText persistence through API', () => {
   })
 
   it('GET returns default miscText as empty JSON object', async () => {
-    const res = await fetch(`${BASE}/api/items/${itemId}`)
+    const res = await e2eFetch(`${BASE}/api/items/${itemId}`)
     const body = await res.json()
     expect(body).toHaveProperty('miscText')
     expect(body.miscText).toBe('{}')
@@ -37,27 +37,27 @@ describe('miscText persistence through API', () => {
 
   it('PUT /api/items/[id] with miscText saves it (verify via GET)', async () => {
     const miscText = JSON.stringify({ author: 'Test User', notes: 'Created via test' })
-    const putRes = await fetch(`${BASE}/api/items/${itemId}`, {
+    const putRes = await e2eFetch(`${BASE}/api/items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ miscText }),
     })
     expect(putRes.status).toBe(200)
 
-    const getRes = await fetch(`${BASE}/api/items/${itemId}`)
+    const getRes = await e2eFetch(`${BASE}/api/items/${itemId}`)
     const body = await getRes.json()
     expect(body.miscText).toBe(miscText)
   })
 
   it('PUT /api/items/[id] without miscText keeps existing miscText', async () => {
-    const putRes = await fetch(`${BASE}/api/items/${itemId}`, {
+    const putRes = await e2eFetch(`${BASE}/api/items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ html: '<p>Updated</p>' }),
     })
     expect(putRes.status).toBe(200)
 
-    const getRes = await fetch(`${BASE}/api/items/${itemId}`)
+    const getRes = await e2eFetch(`${BASE}/api/items/${itemId}`)
     const body = await getRes.json()
     expect(body.miscText).toBe(JSON.stringify({ author: 'Test User', notes: 'Created via test' }))
   })
@@ -69,14 +69,14 @@ describe('miscText persistence through API', () => {
         uppercase: { params: ['str'], code: 'return str.toUpperCase()' },
       },
     })
-    const putRes = await fetch(`${BASE}/api/items/${itemId}`, {
+    const putRes = await e2eFetch(`${BASE}/api/items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ miscText }),
     })
     expect(putRes.status).toBe(200)
 
-    const getRes = await fetch(`${BASE}/api/items/${itemId}`)
+    const getRes = await e2eFetch(`${BASE}/api/items/${itemId}`)
     const body = await getRes.json()
     expect(body.miscText).toBe(miscText)
 
@@ -88,7 +88,7 @@ describe('miscText persistence through API', () => {
 
   it('PUT with miscText alongside other fields works correctly', async () => {
     const miscText = JSON.stringify({ version: 2, migrated: true })
-    const putRes = await fetch(`${BASE}/api/items/${itemId}`, {
+    const putRes = await e2eFetch(`${BASE}/api/items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -100,7 +100,7 @@ describe('miscText persistence through API', () => {
     })
     expect(putRes.status).toBe(200)
 
-    const getRes = await fetch(`${BASE}/api/items/${itemId}`)
+    const getRes = await e2eFetch(`${BASE}/api/items/${itemId}`)
     const body = await getRes.json()
     expect(body.html).toBe('<h1>New Template</h1>')
     expect(body.css).toBe('h1 { color: blue; }')
@@ -109,14 +109,14 @@ describe('miscText persistence through API', () => {
   })
 
   it('PUT with malformed miscText is handled gracefully', async () => {
-    const putRes = await fetch(`${BASE}/api/items/${itemId}`, {
+    const putRes = await e2eFetch(`${BASE}/api/items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ miscText: 'not-valid-json' }),
     })
     expect(putRes.status).toBe(200)
 
-    const getRes = await fetch(`${BASE}/api/items/${itemId}`)
+    const getRes = await e2eFetch(`${BASE}/api/items/${itemId}`)
     const body = await getRes.json()
     expect(body.miscText).toBe('not-valid-json')
   })

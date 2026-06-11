@@ -1,14 +1,14 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
 
-const BASE = process.env.TEST_API_URL || 'http://localhost:3000'
+import { E2E_BASE as BASE, e2eEnabled, e2eFetch } from './e2e-fetch'
 
-describe('Datasets API', () => {
+describe.skipIf(!e2eEnabled)('Datasets API', () => {
   let projectId: number
   let itemId: number
 
   it('creates project and item (prerequisites)', async () => {
-    const pRes = await fetch(`${BASE}/api/projects`, {
+    const pRes = await e2eFetch(`${BASE}/api/projects`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Dataset Test Project' }),
@@ -16,7 +16,7 @@ describe('Datasets API', () => {
     const project = await pRes.json()
     projectId = project.id
 
-    const iRes = await fetch(`${BASE}/api/items`, {
+    const iRes = await e2eFetch(`${BASE}/api/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ projectId, name: 'Dataset Test Item' }),
@@ -30,7 +30,7 @@ describe('Datasets API', () => {
     const formData = new FormData()
     formData.append('file', new File([csvContent], 'test.csv', { type: 'text/csv' }))
 
-    const res = await fetch(`${BASE}/api/items/${itemId}/datasets`, {
+    const res = await e2eFetch(`${BASE}/api/items/${itemId}/datasets`, {
       method: 'POST',
       body: formData,
     })
@@ -42,7 +42,7 @@ describe('Datasets API', () => {
   })
 
   it('GET /api/items/[id]/datasets lists datasets', async () => {
-    const res = await fetch(`${BASE}/api/items/${itemId}/datasets`)
+    const res = await e2eFetch(`${BASE}/api/items/${itemId}/datasets`)
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(Array.isArray(body)).toBe(true)

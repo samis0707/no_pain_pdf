@@ -1,13 +1,13 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
 
-const BASE = process.env.TEST_API_URL || 'http://localhost:3000'
+import { E2E_BASE as BASE, e2eEnabled, e2eFetch } from './e2e-fetch'
 
-describe('Items API', () => {
+describe.skipIf(!e2eEnabled)('Items API', () => {
   let projectId: number
 
   it('creates a project first (prerequisite)', async () => {
-    const res = await fetch(`${BASE}/api/projects`, {
+    const res = await e2eFetch(`${BASE}/api/projects`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'Item Test Project' }),
@@ -17,7 +17,7 @@ describe('Items API', () => {
   })
 
   it('POST /api/items creates an item with projectId', async () => {
-    const res = await fetch(`${BASE}/api/items`, {
+    const res = await e2eFetch(`${BASE}/api/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ projectId, name: 'Test Item' }),
@@ -30,14 +30,14 @@ describe('Items API', () => {
   })
 
   it('PUT /api/items/[id] updates html and css', async () => {
-    const createRes = await fetch(`${BASE}/api/items`, {
+    const createRes = await e2eFetch(`${BASE}/api/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ projectId, name: 'Updatable Item' }),
     })
     const item = await createRes.json()
 
-    const res = await fetch(`${BASE}/api/items/${item.id}`, {
+    const res = await e2eFetch(`${BASE}/api/items/${item.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
