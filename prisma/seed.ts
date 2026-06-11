@@ -39,12 +39,27 @@ const pageFormats = [
 
 async function main() {
   console.log('Seeding default user...')
-  await prisma.user.upsert({
+  const devUser = await prisma.user.upsert({
     where: { email: 'dev@example.com' },
     update: {},
-    create: { email: 'dev@example.com', name: 'Dev User' },
+    create: { email: 'dev@example.com', name: 'Dev User', emailVerified: true },
   })
-  console.log('  ✓ dev@example.com')
+  // Better Auth credential so the dev user can actually log in (dev only).
+  const existingCredential = await prisma.account.findFirst({
+    where: { userId: devUser.id, providerId: 'credential' },
+  })
+  if (!existingCredential) {
+    const { hashPassword } = await import('better-auth/crypto')
+    await prisma.account.create({
+      data: {
+        userId: devUser.id,
+        providerId: 'credential',
+        accountId: String(devUser.id),
+        password: await hashPassword('devpassword'),
+      },
+    })
+  }
+  console.log('  ✓ dev@example.com (password: devpassword)')
 
   console.log('Seeding page format presets...')
 
