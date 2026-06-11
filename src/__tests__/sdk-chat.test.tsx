@@ -116,7 +116,7 @@ describe('SdkChat', () => {
 })
 
 describe('ArtifactPanel', () => {
-  it('switches between Preview, Code and Data tabs', async () => {
+  it('switches between Preview, Visual, Code and Data tabs', async () => {
     vi.doMock('@/components/Preview/PreviewPanel', () => ({
       default: () => <div data-testid="preview-panel" />,
     }))
@@ -126,11 +126,17 @@ describe('ArtifactPanel', () => {
     vi.doMock('@/components/DataImport/DataImportPanel', () => ({
       default: () => <div data-testid="data-import-panel" />,
     }))
+    vi.doMock('@/components/artifact/VisualEditor', () => ({
+      default: () => <div data-testid="visual-editor" />,
+    }))
     const { default: ArtifactPanel } = await import('@/components/artifact/ArtifactPanel')
 
     render(<ArtifactPanel itemId={7} />)
 
     expect(screen.getByTestId('preview-panel')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('artifact-tab-visual'))
+    expect(screen.getByTestId('visual-editor')).toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId('artifact-tab-code'))
     expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()

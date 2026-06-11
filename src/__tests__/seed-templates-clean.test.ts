@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import Handlebars from 'handlebars'
 
-const seedPath = path.resolve(__dirname, '../../prisma/seed.ts')
+const seedPath = path.resolve(__dirname, '../../prisma/seed-templates.ts')
 const seedContent = fs.readFileSync(seedPath, 'utf-8')
 
 function extractHtmlFields(content: string): string[] {

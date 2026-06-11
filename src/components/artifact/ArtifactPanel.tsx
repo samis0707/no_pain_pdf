@@ -7,8 +7,9 @@ import DataImportPanel from '@/components/DataImport/DataImportPanel'
 import ErrorBoundary from '@/components/Preview/ErrorBoundary'
 import TemplatePicker from '@/components/TemplateLibrary/TemplatePicker'
 import ExportPanel from '@/components/ExportPanel/ExportPanel'
+import VisualEditor from '@/components/artifact/VisualEditor'
 
-type ArtifactTab = 'preview' | 'code' | 'data' | 'templates' | 'export'
+type ArtifactTab = 'preview' | 'visual' | 'code' | 'data' | 'templates' | 'export'
 
 interface ArtifactPanelProps {
   itemId: number
@@ -16,6 +17,7 @@ interface ArtifactPanelProps {
 
 const TABS: Array<{ id: ArtifactTab; label: string }> = [
   { id: 'preview', label: 'Preview' },
+  { id: 'visual', label: 'Visual' },
   { id: 'code', label: 'Code' },
   { id: 'data', label: 'Data' },
   { id: 'templates', label: 'Templates' },
@@ -50,6 +52,11 @@ export default function ArtifactPanel({ itemId }: ArtifactPanelProps) {
               <PreviewPanel />
             </div>
           </ErrorBoundary>
+        )}
+        {tab === 'visual' && (
+          <div className="h-full">
+            <VisualEditor />
+          </div>
         )}
         {tab === 'code' && (
           <div className="h-full bg-white border rounded-lg overflow-hidden">
