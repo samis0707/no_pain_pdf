@@ -15,7 +15,11 @@ const { mockResolveModel, mockBuildSdkTools, mockSaveUIMessages, mockBuildItemSy
 vi.mock('@/lib/ai/sdk-provider', () => ({ resolveModel: mockResolveModel }))
 vi.mock('@/lib/ai/sdk-tools', () => ({ buildSdkTools: mockBuildSdkTools }))
 vi.mock('@/lib/ai/item-context', () => ({ buildItemSystemPrompt: mockBuildItemSystemPrompt }))
-vi.mock('@/lib/ai/conversation', () => ({ saveUIMessages: mockSaveUIMessages }))
+vi.mock('@/lib/ai/conversation', () => ({
+  saveUIMessages: mockSaveUIMessages,
+  loadUIMessages: vi.fn(),
+  clearConversation: vi.fn().mockResolvedValue(undefined),
+}))
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('@/lib/auth-session', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/auth-session')>()),
@@ -156,5 +160,33 @@ describe('POST /api/chat (AI SDK)', () => {
     const res = await POST(makeRequest({ messages: USER_MESSAGES }))
 
     expect(res.status).toBe(400)
+  })
+})
+
+describe('GET/DELETE /api/chat', () => {
+  it('GET returns the stored UIMessages for an owned item', async () => {
+    const { GET } = await import('@/app/api/chat/route')
+    const { loadUIMessages } = await import('@/lib/ai/conversation')
+    vi.mocked(loadUIMessages).mockResolvedValue([
+      { id: '1', role: 'user', parts: [{ type: 'text', text: 'hi' }] },
+    ] as never)
+
+    const res = await GET(new NextRequest('http://localhost/api/chat?itemId=7'))
+
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.messages).toHaveLength(1)
+  })
+
+  it('DELETE clears the conversation', async () => {
+    const { DELETE } = await import('@/app/api/chat/route')
+    const { clearConversation } = await import('@/lib/ai/conversation')
+
+    const res = await DELETE(
+      new NextRequest('http://localhost/api/chat?itemId=7', { method: 'DELETE' })
+    )
+
+    expect(res.status).toBe(200)
+    expect(vi.mocked(clearConversation)).toHaveBeenCalledWith('7')
   })
 })
