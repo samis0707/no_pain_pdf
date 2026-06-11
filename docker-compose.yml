@@ -54,7 +54,6 @@ services:
       - "3001:3001"
     environment:
       - PYTHONUNBUFFERED=1
-      - NEXTJS_URL=http://nextjs:3000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 10s
