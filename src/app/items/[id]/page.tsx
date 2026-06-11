@@ -1,172 +1,52 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import DataImportPanel from '@/components/DataImport/DataImportPanel'
-import MonacoEditor from '@/components/Editor/MonacoEditor'
-import PreviewPanel from '@/components/Preview/PreviewPanel'
-import ErrorBoundary from '@/components/Preview/ErrorBoundary'
-import ExportPanel from '@/components/ExportPanel/ExportPanel'
-import ChatSidebar from '@/components/Chat/ChatSidebar'
-import TemplatePicker from '@/components/TemplateLibrary/TemplatePicker'
+import SdkChat from '@/components/Chat/SdkChat'
+import ArtifactPanel from '@/components/artifact/ArtifactPanel'
 import DebugBar from '@/components/DebugBar/DebugBar'
 import { useTemplateStore } from '@/stores/templateStore'
-import { useChatStore } from '@/stores/chatStore'
-import { useExportStore } from '@/stores/exportStore'
-
-type Tab = 'upload' | 'design' | 'export'
 
 export default function EditorPage() {
   const params = useParams<{ id: string }>()
   const itemId = parseInt(params.id)
-  const [activeTab, setActiveTab] = useState<Tab>('upload')
-  const [editorOpen, setEditorOpen] = useState(false)
-  const [templatesOpen, setTemplatesOpen] = useState(false)
   const { setItemId } = useTemplateStore()
-  const chatMessages = useChatStore((s) => s.messages)
-  const chatIsStreaming = useChatStore((s) => s.isStreaming)
-  const chatError = useChatStore((s) => s.error)
-  const chatSendMessage = useChatStore((s) => s.sendMessage)
-  const chatClearMessages = useChatStore((s) => s.clearMessages)
-  const chatSetItemId = useChatStore((s) => s.setItemId)
-  const chatLoadHistory = useChatStore((s) => s.loadHistory)
-  const chatRollback = useChatStore((s) => s.rollback)
-  const exportPdf = useExportStore((s) => s.exportPdf)
-  const isExporting = useExportStore((s) => s.isExporting)
-  const templateHtml = useTemplateStore((s) => s.html)
-  const templateCss = useTemplateStore((s) => s.css)
 
   useEffect(() => {
-    if (activeTab === 'design' && !isNaN(itemId)) {
+    if (!isNaN(itemId)) {
       setItemId(itemId)
-      chatSetItemId(String(itemId))
-      chatLoadHistory()
     }
-  }, [activeTab, itemId, setItemId, chatSetItemId, chatLoadHistory])
+  }, [itemId, setItemId])
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'upload', label: 'Upload' },
-    { id: 'design', label: 'Design' },
-    { id: 'export', label: 'Export' },
-  ]
+  if (isNaN(itemId)) {
+    return (
+      <div className="flex items-center justify-center h-screen text-zinc-500">
+        Invalid item — <Link href="/projects" className="underline ml-1">back to projects</Link>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-screen">
-      <header className="flex items-center justify-between px-6 py-3 border-b bg-white">
+      <header className="flex items-center justify-between px-6 py-3 border-b bg-white shrink-0">
         <div className="flex items-center gap-3">
           <Link href="/projects" className="text-sm text-zinc-500 hover:text-zinc-800">
             ← Projects
           </Link>
           <h1 className="text-lg font-semibold">No Pain PDF</h1>
         </div>
-        <nav className="flex gap-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-zinc-900 text-white'
-                  : 'text-zinc-600 hover:bg-zinc-100'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-        <div className="w-24" />
       </header>
 
       <DebugBar />
 
-      <main className="flex-1 overflow-auto">
-        {activeTab === 'upload' && <DataImportPanel itemId={itemId} />}
-
-        {activeTab === 'design' && (
-          <div className="flex h-full">
-            <div className="flex-1 border-r p-4 min-w-0 relative">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-lg font-semibold">Preview</h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setTemplatesOpen((open) => !open)}
-                    className="px-3 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-800 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
-                    type="button"
-                  >
-                    Templates
-                  </button>
-                  <button
-                    onClick={() => setEditorOpen(true)}
-                    className="px-3 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-800 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
-                    type="button"
-                  >
-                    Open Editor
-                  </button>
-                </div>
-              </div>
-              {templatesOpen && (
-                <div className="absolute top-12 right-4 z-10 w-80 shadow-xl">
-                  <TemplatePicker itemId={String(itemId)} />
-                </div>
-              )}
-              <ErrorBoundary>
-                <div className="h-[calc(100%-2.5rem)]">
-                  <PreviewPanel />
-                </div>
-              </ErrorBoundary>
-            </div>
-            <ChatSidebar
-              messages={chatMessages}
-              isStreaming={chatIsStreaming}
-              error={chatError}
-              onSend={chatSendMessage}
-              onClear={chatClearMessages}
-              onExportPdf={() => exportPdf(templateHtml, templateCss)}
-              isExporting={isExporting}
-              onUndo={() => chatRollback()}
-              onRollback={(msg) => chatRollback(msg.version)}
-            />
-          </div>
-        )}
-
-        {editorOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-            onClick={() => setEditorOpen(false)}
-          >
-            <div
-              className="relative w-[90vw] h-[90vh] bg-white rounded-lg shadow-2xl flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
-                <h2 className="text-lg font-semibold">Template Editor</h2>
-                <button
-                  onClick={() => setEditorOpen(false)}
-                  className="px-3 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-800 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
-                  type="button"
-                >
-                  Close
-                </button>
-              </div>
-              <div className="flex-1 min-h-0">
-                <MonacoEditor />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'export' && (
-          <div className="p-6 max-w-lg mx-auto space-y-6">
-            <h2 className="text-xl font-semibold">Export PDF</h2>
-            <p className="text-zinc-500 text-sm">
-              Configure export settings and download your PDF.
-            </p>
-            <div className="border rounded-lg p-6">
-              <ExportPanel />
-            </div>
-          </div>
-        )}
+      <main className="flex flex-1 min-h-0">
+        <div className="w-[440px] shrink-0 h-full">
+          <SdkChat itemId={String(itemId)} />
+        </div>
+        <div className="flex-1 min-w-0 h-full">
+          <ArtifactPanel itemId={itemId} />
+        </div>
       </main>
     </div>
   )
