@@ -21,12 +21,57 @@ import {
   saveAsTemplateTool,
 } from './tools'
 
+const MAX_AUTO_RENDERS = 3
+
+interface AutoPreviewOutput {
+  autoPreview?: { pageCount: number; truncated: boolean }
+  __previewImages?: Array<{ mimeType: string; data: string }>
+}
+
+/** Emits the JSON result as text plus any preview images as media parts. */
+function previewAwareModelOutput({ output }: { output: unknown }) {
+  const { __previewImages, ...summary } = (output ?? {}) as AutoPreviewOutput &
+    Record<string, unknown>
+  return {
+    type: 'content' as const,
+    value: [
+      { type: 'text' as const, text: JSON.stringify(summary) },
+      ...(__previewImages ?? []).map((img) => ({
+        type: 'media' as const,
+        mediaType: img.mimeType,
+        data: img.data,
+      })),
+    ],
+  }
+}
+
 /**
  * AI SDK wrappers around the legacy tool implementations in tools.ts —
  * the implementations stay byte-identical; only the declaration format
  * changes (zod schemas + tool()).
  */
 export function buildSdkTools(itemId: string): ToolSet {
+  let autoRenders = 0
+
+  // After a successful document mutation, one preview render is attached to
+  // the tool output so the model sees the result of its own edit (capped per
+  // request; render failures never break the mutation).
+  async function withAutoPreview<T extends Record<string, unknown>>(result: T): Promise<T> {
+    if (autoRenders >= MAX_AUTO_RENDERS) return result
+    autoRenders++
+    try {
+      const preview = await renderPreview(itemId)
+      return {
+        ...result,
+        autoPreview: { pageCount: preview.pageCount, truncated: preview.truncated },
+        __previewImages: preview.images,
+      }
+    } catch (error) {
+      console.error('⚠️ [SdkTools] Auto preview render failed:', error)
+      return result
+    }
+  }
+
   return {
     get_template: tool({
       description: 'Get the current template HTML, CSS, name and page format',
@@ -41,7 +86,8 @@ export function buildSdkTools(itemId: string): ToolSet {
         html: z.string().optional().describe('Full new HTML body of the template'),
         css: z.string().optional().describe('Full new CSS of the template'),
       }),
-      execute: ({ html, css }) => updateTemplate(itemId, html, css),
+      execute: async ({ html, css }) => withAutoPreview(await updateTemplate(itemId, html, css)),
+      toModelOutput: previewAwareModelOutput,
     }),
 
     update_template_html: tool({
@@ -49,7 +95,8 @@ export function buildSdkTools(itemId: string): ToolSet {
       inputSchema: z.object({
         html: z.string().describe('Full new HTML body of the template'),
       }),
-      execute: ({ html }) => updateTemplateHtml(itemId, html),
+      execute: async ({ html }) => withAutoPreview(await updateTemplateHtml(itemId, html)),
+      toModelOutput: previewAwareModelOutput,
     }),
 
     get_data_info: tool({
@@ -139,7 +186,9 @@ export function buildSdkTools(itemId: string): ToolSet {
         pageFormatId: z.number().nullable().optional().describe('Page format id, or null to clear'),
         css: z.string().optional().describe('Updated CSS for the new format'),
       }),
-      execute: ({ pageFormatId, css }) => updatePageFormat(itemId, pageFormatId, css),
+      execute: async ({ pageFormatId, css }) =>
+        withAutoPreview(await updatePageFormat(itemId, pageFormatId, css)),
+      toModelOutput: previewAwareModelOutput,
     }),
 
     update_export_settings: tool({
@@ -176,7 +225,9 @@ export function buildSdkTools(itemId: string): ToolSet {
       inputSchema: z.object({
         templateId: z.number().describe('ID of the template to apply (from list_templates)'),
       }),
-      execute: ({ templateId }) => applyTemplateTool(itemId, templateId),
+      execute: async ({ templateId }) =>
+        withAutoPreview(await applyTemplateTool(itemId, templateId)),
+      toModelOutput: previewAwareModelOutput,
     }),
 
     save_as_template: tool({
