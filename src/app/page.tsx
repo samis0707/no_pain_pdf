@@ -7,6 +7,7 @@ import PreviewPanel from '@/components/Preview/PreviewPanel'
 import ErrorBoundary from '@/components/Preview/ErrorBoundary'
 import ExportPanel from '@/components/ExportPanel/ExportPanel'
 import ChatSidebar from '@/components/Chat/ChatSidebar'
+import TemplatePicker from '@/components/TemplateLibrary/TemplatePicker'
 import DebugBar from '@/components/DebugBar/DebugBar'
 import { useTemplateStore } from '@/stores/templateStore'
 import { useChatStore } from '@/stores/chatStore'
@@ -17,6 +18,7 @@ type Tab = 'upload' | 'design' | 'export'
 export default function EditorPage() {
   const [activeTab, setActiveTab] = useState<Tab>('upload')
   const [editorOpen, setEditorOpen] = useState(false)
+  const [templatesOpen, setTemplatesOpen] = useState(false)
   const { setItemId } = useTemplateStore()
   const chatMessages = useChatStore((s) => s.messages)
   const chatIsStreaming = useChatStore((s) => s.isStreaming)
@@ -77,14 +79,28 @@ export default function EditorPage() {
             <div className="flex-1 border-r p-4 min-w-0 relative">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-lg font-semibold">Preview</h2>
-                <button
-                  onClick={() => setEditorOpen(true)}
-                  className="px-3 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-800 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
-                  type="button"
-                >
-                  Open Editor
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setTemplatesOpen((open) => !open)}
+                    className="px-3 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-800 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
+                    type="button"
+                  >
+                    Templates
+                  </button>
+                  <button
+                    onClick={() => setEditorOpen(true)}
+                    className="px-3 py-1 text-xs font-medium text-zinc-600 hover:text-zinc-800 bg-white border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
+                    type="button"
+                  >
+                    Open Editor
+                  </button>
+                </div>
               </div>
+              {templatesOpen && (
+                <div className="absolute top-12 right-4 z-10 w-80 shadow-xl">
+                  <TemplatePicker itemId="1" />
+                </div>
+              )}
               <ErrorBoundary>
                 <div className="h-[calc(100%-2.5rem)]">
                   <PreviewPanel />
