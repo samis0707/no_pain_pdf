@@ -29,13 +29,13 @@ export default function ArtifactPanel({ itemId }: ArtifactPanelProps) {
 
   return (
     <div className="flex flex-col h-full min-w-0 bg-zinc-50">
-      <nav className="flex gap-1 px-4 py-2 border-b bg-white shrink-0">
+      <nav className="flex gap-1 px-2 md:px-4 py-2 border-b bg-white shrink-0 overflow-x-auto">
         {TABS.map((t) => (
           <button
             key={t.id}
             data-testid={`artifact-tab-${t.id}`}
             onClick={() => setTab(t.id)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
               tab === t.id ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'
             }`}
             type="button"
@@ -45,7 +45,7 @@ export default function ArtifactPanel({ itemId }: ArtifactPanelProps) {
         ))}
       </nav>
 
-      <div className="flex-1 min-h-0 overflow-auto p-4">
+      <div className="flex-1 min-h-0 overflow-auto p-2 md:p-4">
         {tab === 'preview' && (
           <ErrorBoundary>
             <div className="h-full">

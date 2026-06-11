@@ -250,7 +250,7 @@ export default function SdkChat({ itemId }: SdkChatProps) {
           }}
           rows={2}
           placeholder="Describe your print design…"
-          className="flex-1 px-3 py-2 text-sm border rounded-md resize-none"
+          className="flex-1 px-3 py-2 text-base md:text-sm border rounded-md resize-none"
         />
         <button
           data-testid="chat-send"
