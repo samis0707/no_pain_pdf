@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const mockSend = vi.fn()
 const mockGetSignedUrl = vi.fn()
@@ -181,6 +181,47 @@ describe('generateUploadUrl', () => {
       expect.any(Object),
       expect.any(Object),
       { expiresIn: 7200 }
+    )
+  })
+})
+
+describe('generateInternalDownloadUrl', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('presigns with a client built from S3_INTERNAL_ENDPOINT', async () => {
+    vi.stubEnv('S3_ENDPOINT', 'http://localhost:9000')
+    vi.stubEnv('S3_INTERNAL_ENDPOINT', 'http://minio:9000')
+
+    const { generateInternalDownloadUrl } = await import('@/lib/s3')
+    const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3')
+
+    mockGetSignedUrl.mockResolvedValueOnce('http://minio:9000/uploads/k?sig=1')
+    const url = await generateInternalDownloadUrl('assets/1/k.png')
+
+    expect(S3Client).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: 'http://minio:9000' })
+    )
+    expect(GetObjectCommand).toHaveBeenCalledWith({
+      Bucket: 'uploads',
+      Key: 'assets/1/k.png',
+    })
+    expect(url).toBe('http://minio:9000/uploads/k?sig=1')
+  })
+
+  it('falls back to S3_ENDPOINT when S3_INTERNAL_ENDPOINT is not set', async () => {
+    vi.stubEnv('S3_ENDPOINT', 'http://localhost:9000')
+    vi.stubEnv('S3_INTERNAL_ENDPOINT', '')
+
+    const { generateInternalDownloadUrl } = await import('@/lib/s3')
+    const { S3Client } = await import('@aws-sdk/client-s3')
+
+    mockGetSignedUrl.mockResolvedValueOnce('http://localhost:9000/uploads/k?sig=1')
+    await generateInternalDownloadUrl('k.png')
+
+    expect(S3Client).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: 'http://localhost:9000' })
     )
   })
 })
