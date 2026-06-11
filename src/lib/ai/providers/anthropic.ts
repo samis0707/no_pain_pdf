@@ -45,14 +45,37 @@ function formatMessages(messages: ChatMessage[]): { system: string | undefined; 
       }
       formatted.push({ role: 'assistant', content: contentBlocks })
     } else if (msg.role === 'tool') {
+      // Image-bearing tool results (e.g. rendered previews) become block
+      // arrays so the model can see the pages; plain results stay strings.
+      let resultContent: unknown = msg.content
+      if (msg.images && msg.images.length > 0) {
+        resultContent = [
+          { type: 'text', text: msg.content },
+          ...msg.images.map((img) => ({
+            type: 'image',
+            source: { type: 'base64', media_type: img.mimeType, data: img.data },
+          })),
+        ]
+      }
       formatted.push({
         role: 'user',
         content: [
           {
             type: 'tool_result',
             tool_use_id: msg.toolCallId || '',
-            content: msg.content,
+            content: resultContent,
           },
+        ],
+      })
+    } else if (msg.role === 'user' && msg.attachments && msg.attachments.length > 0) {
+      formatted.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: msg.content },
+          ...msg.attachments.map((att) => ({
+            type: 'image',
+            source: { type: 'base64', media_type: att.mimeType, data: att.data },
+          })),
         ],
       })
     } else {

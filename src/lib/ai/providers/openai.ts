@@ -2,9 +2,10 @@ import { AiProvider } from '../provider'
 import { ChatMessage, ProviderConfig } from '../types'
 
 function formatMessages(messages: ChatMessage[]): Record<string, unknown>[] {
-  return messages.map((msg) => {
+  const formatted: Record<string, unknown>[] = []
+  for (const msg of messages) {
     if (msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0) {
-      return {
+      formatted.push({
         role: 'assistant',
         content: null,
         tool_calls: msg.toolCalls.map((tc) => ({
@@ -15,16 +16,29 @@ function formatMessages(messages: ChatMessage[]): Record<string, unknown>[] {
             arguments: JSON.stringify(tc.args),
           },
         })),
-      }
-    }
-    if (msg.role === 'tool') {
-      return {
+      })
+    } else if (msg.role === 'tool') {
+      formatted.push({
         role: 'tool',
         tool_call_id: msg.toolCallId || '',
         content: msg.content,
+      })
+      // The chat completions API only takes text in tool messages, so
+      // image-bearing results get a synthetic follow-up user message. It is
+      // created here at format time and never enters the stored conversation.
+      if (msg.images && msg.images.length > 0) {
+        formatted.push({
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Rendered result of the tool call above:' },
+            ...msg.images.map((img) => ({
+              type: 'image_url',
+              image_url: { url: `data:${img.mimeType};base64,${img.data}` },
+            })),
+          ],
+        })
       }
-    }
-    if (msg.role === 'user' && msg.attachments && msg.attachments.length > 0) {
+    } else if (msg.role === 'user' && msg.attachments && msg.attachments.length > 0) {
       const content: Array<Record<string, unknown>> = [
         { type: 'text', text: msg.content },
       ]
@@ -34,10 +48,12 @@ function formatMessages(messages: ChatMessage[]): Record<string, unknown>[] {
           image_url: { url: `data:${att.mimeType};base64,${att.data}` },
         })
       }
-      return { role: 'user', content }
+      formatted.push({ role: 'user', content })
+    } else {
+      formatted.push({ role: msg.role, content: msg.content })
     }
-    return { role: msg.role, content: msg.content }
-  })
+  }
+  return formatted
 }
 
 export class OpenAIProvider extends AiProvider {
