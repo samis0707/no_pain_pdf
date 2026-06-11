@@ -147,3 +147,28 @@ describe('visual feedback loop section', () => {
     expect(prompt).toContain('autoPreview')
   })
 })
+
+describe('templates / corporate identity section', () => {
+  const baseContext = {
+    templateName: 'Test Flyer',
+    templateHtml: '<h1>{{title}}</h1>',
+    templateCss: '',
+    customHelpers: [],
+    dataColumns: [],
+    sampleRows: [],
+    rowCount: 0,
+    assets: [],
+    pageFormat: null,
+    availablePageFormats: [],
+  }
+
+  it('explains the corporate identity workflow with the template tools', () => {
+    const prompt = buildSystemPrompt(baseContext)
+    expect(prompt).toContain('## Templates & Corporate Identity')
+    expect(prompt).toContain('list_templates')
+    expect(prompt).toContain('apply_template')
+    expect(prompt).toContain('save_as_template')
+    // the core use case: fit NEW content into an EXISTING styling
+    expect(prompt).toMatch(/re-insert|fit.*content/i)
+  })
+})

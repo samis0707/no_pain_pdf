@@ -343,6 +343,64 @@ export async function generatePdf(
   }
 }
 
+function templateScope(t: { userId: number | null; projectId: number | null }): string {
+  if (t.projectId !== null) return 'project'
+  if (t.userId !== null) return 'user'
+  return 'preset'
+}
+
+export async function listTemplatesTool(
+  itemId: string,
+): Promise<{ templates: Array<{ id: number; name: string; category: string | null; scope: string }> }> {
+  const id = parsePrintItemId(itemId)
+  const item = await prisma.printItem.findUnique({
+    where: { id },
+    include: { project: true },
+  })
+  if (!item) throw new Error(`Item not found: ${itemId}`)
+
+  const { listTemplates } = await import('@/lib/templates')
+  const templates = await listTemplates(item.project.userId, item.projectId)
+
+  return {
+    templates: templates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      category: t.category,
+      scope: templateScope(t),
+    })),
+  }
+}
+
+export async function applyTemplateTool(
+  itemId: string,
+  templateId: number,
+): Promise<{ id: number; html: string; css: string; templateId: number | null; version: number }> {
+  const { applyTemplateToItem } = await import('@/lib/templates')
+  return applyTemplateToItem(itemId, templateId)
+}
+
+export async function saveAsTemplateTool(
+  itemId: string,
+  name: string,
+  scope: 'user' | 'project',
+): Promise<{ id: number; name: string }> {
+  const id = parsePrintItemId(itemId)
+  const item = await prisma.printItem.findUnique({
+    where: { id },
+    include: { project: true },
+  })
+  if (!item) throw new Error(`Item not found: ${itemId}`)
+
+  const { saveItemAsTemplate } = await import('@/lib/templates')
+  const template = await saveItemAsTemplate(itemId, {
+    name,
+    scope,
+    userId: item.project.userId,
+  })
+  return { id: template.id, name: template.name }
+}
+
 export async function getHelpers(
   itemId?: string,
 ): Promise<{

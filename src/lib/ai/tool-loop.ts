@@ -16,6 +16,9 @@ import {
   updatePageFormat,
   updateExportSettings,
   generatePdf,
+  listTemplatesTool,
+  applyTemplateTool,
+  saveAsTemplateTool,
 } from './tools'
 
 type ToolHandler = (itemId: string, args: Record<string, unknown>) => Promise<unknown>
@@ -56,6 +59,15 @@ const toolHandlers: Record<string, ToolHandler> = {
       args.colorMode as 'rgb' | 'cmyk' | undefined,
     ),
   export_pdf: (itemId) => generatePdf(itemId),
+  list_templates: (itemId) => listTemplatesTool(itemId),
+  apply_template: (itemId, args) =>
+    applyTemplateTool(itemId, args.templateId as number),
+  save_as_template: (itemId, args) =>
+    saveAsTemplateTool(
+      itemId,
+      args.name as string,
+      args.scope as 'user' | 'project',
+    ),
 }
 
 const TOOL_DEFINITIONS = [
@@ -235,6 +247,46 @@ const TOOL_DEFINITIONS = [
           cropMarks: { type: 'boolean', description: 'Whether to include printer crop marks' },
           colorMode: { type: 'string', enum: ['rgb', 'cmyk'], description: 'Color mode for the exported PDF' },
         },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_templates',
+      description:
+        'List available design templates: global presets, the user\'s own saved templates (corporate identity), and templates of the current project. Use before apply_template.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'apply_template',
+      description:
+        'Apply a template\'s HTML and CSS to the current item to fit content into an existing styling (corporate identity). The previous state is snapshotted and can be rolled back. After applying, re-insert the user\'s content into the template structure.',
+      parameters: {
+        type: 'object',
+        properties: {
+          templateId: { type: 'number', description: 'ID of the template to apply (from list_templates)' },
+        },
+        required: ['templateId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'save_as_template',
+      description:
+        'Save the current item design as a reusable template, so future items can be styled the same way. Scope "user" makes it available across all the user\'s projects; "project" keeps it in this project.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Template name, e.g. "ACME letterhead"' },
+          scope: { type: 'string', enum: ['user', 'project'], description: 'Visibility scope' },
+        },
+        required: ['name', 'scope'],
       },
     },
   },
