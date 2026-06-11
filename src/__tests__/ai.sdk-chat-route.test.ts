@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 import { MockLanguageModelV3 } from 'ai/test'
 import { simulateReadableStream, tool } from 'ai'
+import type { LanguageModelV3StreamPart } from '@ai-sdk/provider'
 import { z } from 'zod'
 
 const { mockResolveModel, mockBuildSdkTools, mockSaveUIMessages, mockBuildItemSystemPrompt } =
@@ -27,21 +28,22 @@ vi.mock('@/lib/auth-session', async (importOriginal) => ({
   findOwnedItem: vi.fn().mockResolvedValue({ id: 7, project: { userId: 1 } }),
 }))
 
-const USAGE = { inputTokens: 1, outputTokens: 1, totalTokens: 2 }
+const USAGE = {
+  inputTokens: { total: 1, noCache: 1, cacheRead: undefined, cacheWrite: undefined },
+  outputTokens: { total: 1, text: 1, reasoning: undefined },
+  totalTokens: 2,
+}
 
 function textOnlyModel(text: string) {
+  const chunks: LanguageModelV3StreamPart[] = [
+    { type: 'stream-start', warnings: [] },
+    { type: 'text-start', id: 't1' },
+    { type: 'text-delta', id: 't1', delta: text },
+    { type: 'text-end', id: 't1' },
+    { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: USAGE },
+  ]
   return new MockLanguageModelV3({
-    doStream: async () => ({
-      stream: simulateReadableStream({
-        chunks: [
-          { type: 'stream-start', warnings: [] },
-          { type: 'text-start', id: 't1' },
-          { type: 'text-delta', id: 't1', delta: text },
-          { type: 'text-end', id: 't1' },
-          { type: 'finish', finishReason: 'stop', usage: USAGE },
-        ],
-      }),
-    }),
+    doStream: async () => ({ stream: simulateReadableStream({ chunks }) }),
   })
 }
 
@@ -109,8 +111,8 @@ describe('POST /api/chat (AI SDK)', () => {
                 toolName: 'get_template',
                 input: '{}',
               },
-              { type: 'finish', finishReason: 'tool-calls', usage: USAGE },
-            ],
+              { type: 'finish', finishReason: { unified: 'tool-calls', raw: 'tool_calls' }, usage: USAGE },
+            ] satisfies LanguageModelV3StreamPart[],
           }),
         })
         .mockResolvedValueOnce({
@@ -120,8 +122,8 @@ describe('POST /api/chat (AI SDK)', () => {
               { type: 'text-start', id: 't1' },
               { type: 'text-delta', id: 't1', delta: 'Here is your template' },
               { type: 'text-end', id: 't1' },
-              { type: 'finish', finishReason: 'stop', usage: USAGE },
-            ],
+              { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: USAGE },
+            ] satisfies LanguageModelV3StreamPart[],
           }),
         }),
     })
