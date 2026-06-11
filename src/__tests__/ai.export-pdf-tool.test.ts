@@ -16,7 +16,7 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-import { TOOL_DEFINITIONS, executeToolCall } from '@/lib/ai/tool-loop'
+import { buildSdkTools } from '@/lib/ai/sdk-tools'
 import { TOOL_LABELS_DE } from '@/lib/ai/tool-labels'
 
 const mockItem = (overrides: Record<string, unknown> = {}) => ({
@@ -36,67 +36,47 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-describe('export_pdf tool definition', () => {
-  it('has a tool definition named export_pdf', () => {
-    const def = TOOL_DEFINITIONS.find(
-      (d) => d.function && d.function.name === 'export_pdf',
-    )
-    expect(def).toBeDefined()
-    expect(def!.function.name).toBe('export_pdf')
-  })
+describe('export_pdf SDK declaration', () => {
+  it('is declared with a PDF-generating description and optional filename', () => {
+    const tools = buildSdkTools('1')
+    expect(tools.export_pdf).toBeDefined()
+    expect(tools.export_pdf.description!.toLowerCase()).toContain('pdf')
 
-  it('export_pdf has a description mentioning PDF generation', () => {
-    const def = TOOL_DEFINITIONS.find(
-      (d) => d.function && d.function.name === 'export_pdf',
-    )
-    expect(def!.function.description.toLowerCase()).toContain('pdf')
-  })
-
-  it('export_pdf has no required parameters (itemId injected server-side)', () => {
-    const def = TOOL_DEFINITIONS.find(
-      (d) => d.function && d.function.name === 'export_pdf',
-    )
-    expect(def!.function.parameters.required).toBeUndefined()
-  })
-
-  it('export_pdf has optional filename parameter', () => {
-    const def = TOOL_DEFINITIONS.find(
-      (d) => d.function && d.function.name === 'export_pdf',
-    )
-    expect(def!.function.parameters.properties).toHaveProperty('filename')
+    const schema = tools.export_pdf.inputSchema as {
+      safeParse: (v: unknown) => { success: boolean }
+    }
+    expect(schema.safeParse({}).success).toBe(true)
+    expect(schema.safeParse({ filename: 'flyer.pdf' }).success).toBe(true)
   })
 })
 
-describe('executeToolCall dispatches export_pdf', () => {
-  it('calls export_pdf handler and returns summary with template info', async () => {
+describe('export_pdf execution', () => {
+  it('returns a summary with template info', async () => {
     mockPrintItemFindUnique.mockResolvedValue(mockItem())
 
-    const result = await executeToolCall('1', {
-      id: 'call_pdf_1',
-      name: 'export_pdf',
-      args: {},
-    })
+    const tools = buildSdkTools('1')
+    const result = (await tools.export_pdf.execute!({}, { toolCallId: 'c1', messages: [] })) as {
+      success: boolean
+      itemName: string
+      exportSettings: { bleed: number; cropMarks: boolean; colorMode: string }
+    }
 
-    expect(result.toolCallId).toBe('call_pdf_1')
-    expect(result.result).toHaveProperty('success', true)
-    expect(result.result).toHaveProperty('itemName')
-    expect(result.result).toHaveProperty('exportSettings')
-    expect(result.result.exportSettings).toHaveProperty('bleed')
-    expect(result.result.exportSettings).toHaveProperty('cropMarks')
-    expect(result.result.exportSettings).toHaveProperty('colorMode')
+    expect(result.success).toBe(true)
+    expect(result.itemName).toBe('Test Item')
+    expect(result.exportSettings).toMatchObject({ bleed: 3, cropMarks: true, colorMode: 'cmyk' })
   })
 
   it('returns success=false for invalid item', async () => {
     mockPrintItemFindUnique.mockResolvedValue(null)
 
-    const result = await executeToolCall('999', {
-      id: 'call_err',
-      name: 'export_pdf',
-      args: {},
-    })
+    const tools = buildSdkTools('999')
+    const result = (await tools.export_pdf.execute!({}, { toolCallId: 'c2', messages: [] })) as {
+      success: boolean
+      itemName: string
+    }
 
-    expect(result.result).toHaveProperty('success', false)
-    expect(result.result).toHaveProperty('itemName', '')
+    expect(result.success).toBe(false)
+    expect(result.itemName).toBe('')
   })
 })
 

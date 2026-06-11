@@ -23,7 +23,7 @@ vi.mock('@/lib/prisma', () => ({
 }))
 
 import { updateExportSettings } from '@/lib/ai/tools'
-import { TOOL_DEFINITIONS, executeToolCall } from '@/lib/ai/tool-loop'
+import { buildSdkTools } from '@/lib/ai/sdk-tools'
 import { TOOL_LABELS_DE } from '@/lib/ai/tool-labels'
 
 const mockItem = (exportSettingsStr: string = '{}', version: number = 5) => ({
@@ -184,78 +184,34 @@ describe('updateExportSettings tool handler', () => {
   })
 })
 
-describe('TOOL_DEFINITIONS includes update_export_settings', () => {
-  it('has a tool definition named update_export_settings', () => {
-    const def = TOOL_DEFINITIONS.find(
-      (d) => d.function && d.function.name === 'update_export_settings',
-    )
-    expect(def).toBeDefined()
-    expect(def!.function.name).toBe('update_export_settings')
+describe('update_export_settings SDK declaration', () => {
+  it('is declared with an input schema accepting bleed, cropMarks and colorMode', () => {
+    const tools = buildSdkTools('1')
+    const schema = tools.update_export_settings.inputSchema as {
+      safeParse: (v: unknown) => { success: boolean }
+    }
+
+    expect(schema.safeParse({ bleed: 3, cropMarks: true, colorMode: 'cmyk' }).success).toBe(true)
+    expect(schema.safeParse({}).success).toBe(true) // all optional
+    expect(schema.safeParse({ colorMode: 'pantone' }).success).toBe(false)
+    expect(schema.safeParse({ bleed: 9 }).success).toBe(false)
   })
 
-  it('update_export_settings has bleed parameter', () => {
-    const def = TOOL_DEFINITIONS.find(
-      (d) => d.function && d.function.name === 'update_export_settings',
-    )
-    expect(def!.function.parameters.properties).toHaveProperty('bleed')
-  })
-
-  it('update_export_settings has cropMarks parameter', () => {
-    const def = TOOL_DEFINITIONS.find(
-      (d) => d.function && d.function.name === 'update_export_settings',
-    )
-    expect(def!.function.parameters.properties).toHaveProperty('cropMarks')
-  })
-
-  it('update_export_settings has colorMode parameter with rgb/cmyk enum', () => {
-    const def = TOOL_DEFINITIONS.find(
-      (d) => d.function && d.function.name === 'update_export_settings',
-    )
-    expect(def!.function.parameters.properties).toHaveProperty('colorMode')
-    expect(def!.function.parameters.properties.colorMode.enum).toContain('rgb')
-    expect(def!.function.parameters.properties.colorMode.enum).toContain('cmyk')
-  })
-
-  it('update_export_settings has optional parameters (itemId injected server-side)', () => {
-    const def = TOOL_DEFINITIONS.find(
-      (d) => d.function && d.function.name === 'update_export_settings',
-    )
-    expect(def!.function.parameters.required).toBeUndefined()
-  })
-})
-
-describe('executeToolCall dispatches update_export_settings', () => {
-  it('calls updateExportSettings handler with correct args', async () => {
+  it('execute dispatches to updateExportSettings with the bound itemId', async () => {
     mockPrintItemFindUnique.mockResolvedValue(mockItem())
     mockPrintItemUpdate.mockImplementation(({ where, data }) =>
       Promise.resolve({ ...mockItem(data.exportSettings as string), version: data.version ?? 5 }),
     )
 
-    const result = await executeToolCall('1', {
-      id: 'call_1',
-      name: 'update_export_settings',
-      args: { bleed: 3, cropMarks: true, colorMode: 'cmyk' },
-    })
-
-    expect(result.toolCallId).toBe('call_1')
-    expect(result.result).toHaveProperty('bleed', 3)
-    expect(result.result).toHaveProperty('cropMarks', true)
-    expect(result.result).toHaveProperty('colorMode', 'cmyk')
-  })
-
-  it('passes partial args (only bleed)', async () => {
-    mockPrintItemFindUnique.mockResolvedValue(mockItem())
-    mockPrintItemUpdate.mockImplementation(({ where, data }) =>
-      Promise.resolve({ ...mockItem(data.exportSettings as string), version: data.version ?? 5 }),
+    const tools = buildSdkTools('1')
+    const result = await tools.update_export_settings.execute!(
+      { bleed: 3, cropMarks: true, colorMode: 'cmyk' },
+      { toolCallId: 'call_1', messages: [] }
     )
 
-    const result = await executeToolCall('1', {
-      id: 'call_2',
-      name: 'update_export_settings',
-      args: { bleed: 5 },
-    })
-
-    expect(result.result).toHaveProperty('bleed', 5)
+    expect(result).toHaveProperty('bleed', 3)
+    expect(result).toHaveProperty('cropMarks', true)
+    expect(result).toHaveProperty('colorMode', 'cmyk')
   })
 })
 

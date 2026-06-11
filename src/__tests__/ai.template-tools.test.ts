@@ -74,24 +74,21 @@ describe('saveAsTemplateTool', () => {
   })
 })
 
-describe('tool-loop dispatch', () => {
+describe('SDK dispatch', () => {
   it('declares and dispatches the three template tools', async () => {
-    const { TOOL_DEFINITIONS, executeToolCall } = await import('@/lib/ai/tool-loop')
+    const { buildSdkTools } = await import('@/lib/ai/sdk-tools')
+    const tools = buildSdkTools('7')
 
-    const names = TOOL_DEFINITIONS.map(
-      (t) => (t as { function: { name: string } }).function.name
-    )
-    expect(names).toEqual(
-      expect.arrayContaining(['list_templates', 'apply_template', 'save_as_template'])
-    )
+    for (const name of ['list_templates', 'apply_template', 'save_as_template']) {
+      expect(tools[name], `missing tool ${name}`).toBeDefined()
+    }
 
     mockApply.mockResolvedValue({ id: 7, templateId: 10, version: 3, html: '', css: '' })
-    const result = await executeToolCall('7', {
-      id: 'tc_1',
-      name: 'apply_template',
-      args: { templateId: 10 },
-    })
+    const result = await tools.apply_template.execute!(
+      { templateId: 10 },
+      { toolCallId: 'tc_1', messages: [] }
+    )
     expect(mockApply).toHaveBeenCalledWith('7', 10)
-    expect(result.toolCallId).toBe('tc_1')
+    expect(result).toMatchObject({ templateId: 10 })
   })
 })
