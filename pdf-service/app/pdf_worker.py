@@ -4,10 +4,15 @@ Called as: python -m app.pdf_worker
 Reads JSON from stdin, writes PDF bytes to stdout.
 """
 import json
-import os
 import sys
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
+
+
+def resolve_base_url(data: dict) -> str:
+    """The request's base_url is authoritative — asset URLs are absolute
+    presigned S3 URLs rewritten by the Next.js side, so no env override."""
+    return data.get("base_url") or ""
 
 
 def main() -> None:
@@ -17,7 +22,7 @@ def main() -> None:
     css = data.get("css", "")
     options = data.get("options") or {}
 
-    base_url = os.environ.get("NEXTJS_URL") or data.get("base_url") or ""
+    base_url = resolve_base_url(data)
 
     font_config = FontConfiguration()
 

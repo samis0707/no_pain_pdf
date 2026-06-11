@@ -62,6 +62,38 @@ export async function generateUploadUrl(key: string, expiresIn = 3600) {
   return getSignedUrl(s3Client, command, { expiresIn })
 }
 
+// Presigned URLs sign the Host header, so URLs meant for the WeasyPrint
+// container must be signed against the endpoint *that container* resolves
+// (e.g. http://minio:9000 inside docker), not the browser-facing endpoint.
+let internalClient: S3Client | null = null
+let internalClientEndpoint: string | undefined
+
+function getInternalClient() {
+  const endpoint =
+    process.env.S3_INTERNAL_ENDPOINT || process.env.S3_ENDPOINT || undefined
+  if (!internalClient || internalClientEndpoint !== endpoint) {
+    internalClient = new S3Client({
+      region: process.env.S3_REGION ?? 'us-east-1',
+      endpoint,
+      credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY ?? 'minioadmin',
+        secretAccessKey: process.env.S3_SECRET_KEY ?? 'minioadmin',
+      },
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE !== 'false',
+    })
+    internalClientEndpoint = endpoint
+  }
+  return internalClient
+}
+
+export async function generateInternalDownloadUrl(key: string, expiresIn = 3600) {
+  const command = new GetObjectCommand({
+    Bucket: S3_BUCKET,
+    Key: key,
+  })
+  return getSignedUrl(getInternalClient(), command, { expiresIn })
+}
+
 export async function generateDownloadUrl(key: string) {
   const command = new GetObjectCommand({
     Bucket: S3_BUCKET,
