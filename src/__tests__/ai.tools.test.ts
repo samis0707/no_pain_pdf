@@ -7,12 +7,14 @@ const {
   mockDataSetFindFirst,
   mockDataSetCreate,
   mockAssetFindMany,
+  mockVersionUpsert,
 } = vi.hoisted(() => ({
   mockPrintItemFindUnique: vi.fn(),
   mockPrintItemUpdate: vi.fn(),
   mockDataSetFindFirst: vi.fn(),
   mockDataSetCreate: vi.fn(),
   mockAssetFindMany: vi.fn(),
+  mockVersionUpsert: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -27,6 +29,9 @@ vi.mock('@/lib/prisma', () => ({
     },
     asset: {
       findMany: (...args: unknown[]) => mockAssetFindMany(...args),
+    },
+    printItemVersion: {
+      upsert: (...args: unknown[]) => mockVersionUpsert(...args),
     },
   },
 }))
@@ -123,6 +128,23 @@ describe('getTemplate', () => {
 })
 
 describe('updateTemplate', () => {
+  it('snapshots the PRE-WRITE state before applying the change', async () => {
+    await updateTemplate(TEST_ITEM_ID, '<h1>New</h1>')
+
+    expect(mockVersionUpsert).toHaveBeenCalledTimes(1)
+    const arg = mockVersionUpsert.mock.calls[0][0]
+    expect(arg.create).toMatchObject({
+      printItemId: 42,
+      version: 5,
+      html: '<div>hello</div>',
+      css: 'body { color: red; }',
+    })
+    // snapshot happens before the update writes the new html
+    expect(mockVersionUpsert.mock.invocationCallOrder[0]).toBeLessThan(
+      mockPrintItemUpdate.mock.invocationCallOrder[0],
+    )
+  })
+
   it('saves html and returns updated version', async () => {
     const result = await updateTemplate(TEST_ITEM_ID, '<h1>Hello</h1>')
     expect(result.html).toBe('<h1>Hello</h1>')
