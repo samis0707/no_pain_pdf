@@ -12,7 +12,7 @@ import sys
 from typing import Optional
 
 
-PDF_TIMEOUT = 60  # seconds
+PDF_TIMEOUT = int(os.environ.get("PDF_TIMEOUT", "120"))  # seconds
 PDF_MAX_MEMORY = 512 * 1024 * 1024  # 512 MB
 
 
